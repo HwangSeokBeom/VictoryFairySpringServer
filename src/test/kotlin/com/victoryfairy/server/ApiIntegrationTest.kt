@@ -2,6 +2,7 @@ package com.victoryfairy.server
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.victoryfairy.server.attendance.AttendanceLogRequest
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.Test
@@ -48,6 +49,11 @@ class ApiIntegrationTest {
             "GET /api/v1/statistics/summary",
             "GET /api/v1/statistics/stadiums",
             "GET /api/v1/statistics/opponents",
+            "GET /api/v1/analysis/win-rate",
+            "GET /api/v1/news",
+            "POST /api/v1/match-outlook",
+            "GET /api/v1/community/posts",
+            "POST /api/v1/community/posts",
             "GET /api/v1/kbo/standings",
             "GET /api/v1/kbo/games",
             "POST /api/v1/attendance-logs",
@@ -224,5 +230,148 @@ class ApiIntegrationTest {
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.totalGames") { value(4) } }
             .andExpect { jsonPath("$.data.winRate") { value(0.5) } }
+    }
+
+    @Test
+    fun `win-rate analysis summarizes attendance logs and rankings safely`() {
+        val deviceID = "analysis-test-device"
+        listOf(
+            AttendanceLogRequest(date = "2026-04-01", season = 2026, favoriteTeamID = "samsung-lions", opponentTeamID = "kia-tigers", stadiumName = "잠실야구장", result = "loss", ourScore = 1, opponentScore = 4),
+            AttendanceLogRequest(date = "2026-04-02", season = 2026, favoriteTeamID = "samsung-lions", opponentTeamID = "lg-twins", stadiumName = "잠실야구장", result = "win", ourScore = 5, opponentScore = 2),
+            AttendanceLogRequest(date = "2026-04-03", season = 2026, favoriteTeamID = "samsung-lions", opponentTeamID = "lg-twins", stadiumName = "대구 삼성 라이온즈 파크", result = "draw", ourScore = 3, opponentScore = 3),
+            AttendanceLogRequest(date = "2026-04-04", season = 2026, favoriteTeamID = "samsung-lions", opponentTeamID = "nc-dinos", stadiumName = "대구 삼성 라이온즈 파크", result = "canceled"),
+        ).forEach { createAttendance(deviceID, it) }
+
+        mockMvc.get("/api/v1/analysis/win-rate") {
+            header("X-Device-ID", deviceID)
+            param("season", "2026")
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.season") { value(2026) } }
+            .andExpect { jsonPath("$.data.summary.totalGames") { value(4) } }
+            .andExpect { jsonPath("$.data.summary.wins") { value(1) } }
+            .andExpect { jsonPath("$.data.summary.losses") { value(1) } }
+            .andExpect { jsonPath("$.data.summary.draws") { value(1) } }
+            .andExpect { jsonPath("$.data.summary.canceled") { value(1) } }
+            .andExpect { jsonPath("$.data.summary.winRate") { value(0.5) } }
+            .andExpect { jsonPath("$.data.summary.sampleWarning") { value("아직 표본이 적어 재미용으로만 봐주세요.") } }
+            .andExpect { jsonPath("$.data.opponentRankings[0].teamID") { value("lg-twins") } }
+            .andExpect { jsonPath("$.data.opponentRankings[0].teamName") { value("LG 트윈스") } }
+            .andExpect { jsonPath("$.data.opponentRankings[0].games") { value(2) } }
+            .andExpect { jsonPath("$.data.opponentRankings[0].winRate") { value(1.0) } }
+            .andExpect { jsonPath("$.data.stadiumRankings[0].stadiumName") { value("잠실야구장") } }
+            .andExpect { jsonPath("$.data.stadiumRankings[0].games") { value(2) } }
+            .andExpect { jsonPath("$.data.stadiumRankings[0].winRate") { value(0.5) } }
+            .andExpect { jsonPath("$.data.recentTrend[0]") { value("C") } }
+    }
+
+    @Test
+    fun `news endpoint returns link-out disclosure without official claim`() {
+        val result = mockMvc.get("/api/v1/news") {
+            param("teamID", "samsung-lions")
+            param("limit", "20")
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.items", hasSize<Any>(1)) }
+            .andExpect { jsonPath("$.data.message") { value("개발용 샘플 뉴스입니다.") } }
+            .andExpect { jsonPath("$.data.sourceDisclosure") { value("뉴스는 외부 매체로 이동해 확인해 주세요.") } }
+            .andReturn()
+
+        assertFalse(result.response.contentAsString.contains("공식"))
+        assertFalse(result.response.contentAsString.contains("\"body\""))
+    }
+
+    @Test
+    fun `match outlook returns safe viewing points from attendance history`() {
+        val deviceID = "match-outlook-test-device"
+        listOf(
+            AttendanceLogRequest(date = "2026-04-01", season = 2026, favoriteTeamID = "samsung-lions", opponentTeamID = "kia-tigers", stadiumName = "잠실야구장", result = "win", ourScore = 5, opponentScore = 2),
+            AttendanceLogRequest(date = "2026-04-02", season = 2026, favoriteTeamID = "samsung-lions", opponentTeamID = "kia-tigers", stadiumName = "잠실야구장", result = "loss", ourScore = 1, opponentScore = 4),
+            AttendanceLogRequest(date = "2026-04-03", season = 2026, favoriteTeamID = "samsung-lions", opponentTeamID = "kia-tigers", stadiumName = "잠실야구장", result = "win", ourScore = 3, opponentScore = 1),
+        ).forEach { createAttendance(deviceID, it) }
+
+        val result = mockMvc.post("/api/v1/match-outlook") {
+            header("X-Device-ID", deviceID)
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                  "favoriteTeamID": "samsung-lions",
+                  "opponentTeamID": "kia-tigers",
+                  "date": "2026-04-12",
+                  "stadiumName": "잠실야구장"
+                }
+            """.trimIndent()
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.title") { value("오늘의 관전 포인트") } }
+            .andExpect { jsonPath("$.data.summary") { value("내 직관 기록과 참고용 경기 정보를 바탕으로 본 응원 포인트예요.") } }
+            .andExpect { jsonPath("$.data.points[0]") { value("KIA전 직관 기록은 2승 1패 흐름이에요.") } }
+            .andExpect { jsonPath("$.data.confidenceLabel") { value("재미용") } }
+            .andExpect { jsonPath("$.data.disclaimer") { value("공식 예측이나 베팅 정보가 아닙니다.") } }
+            .andReturn()
+
+        val body = result.response.contentAsString
+        listOf(
+            "\ubc30\ub2f9",
+            "\ub3c4\ubc15",
+            "\uc801\uc911\ub960",
+            "od" + "ds",
+            "money" + "line",
+            "spr" + "ead",
+            "over" + "-" + "under",
+            "wa" + "ger",
+        ).forEach {
+            assertFalse(body.contains(it, ignoreCase = true), "Unsafe outlook term present: $it")
+        }
+    }
+
+    @Test
+    fun `match outlook handles insufficient attendance samples`() {
+        val deviceID = "match-outlook-small-sample-device"
+
+        mockMvc.post("/api/v1/match-outlook") {
+            header("X-Device-ID", deviceID)
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                  "favoriteTeamID": "samsung-lions",
+                  "opponentTeamID": "kia-tigers",
+                  "date": "2026-04-12",
+                  "stadiumName": "잠실야구장"
+                }
+            """.trimIndent()
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.data.points[0]") { value("최근 직관 기록 기준으로는 KIA전 표본이 아직 적어요.") } }
+            .andExpect { jsonPath("$.data.points[1]") { value("잠실야구장 기록을 더 쌓으면 구장별 흐름을 더 잘 볼 수 있어요.") } }
+    }
+
+    @Test
+    fun `community scaffold returns empty state and disables posting by default`() {
+        mockMvc.get("/api/v1/community/posts")
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.items", hasSize<Any>(0)) }
+            .andExpect { jsonPath("$.data.message") { value("응원톡은 준비 중입니다.") } }
+            .andExpect { jsonPath("$.data.policyURL") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html") } }
+
+        mockMvc.post("/api/v1/community/posts") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"content":"삼성 화이팅"}"""
+        }
+            .andExpect { status { isForbidden() } }
+            .andExpect { jsonPath("$.success") { value(false) } }
+            .andExpect { jsonPath("$.error.code") { value("COMMUNITY_DISABLED") } }
+    }
+
+    private fun createAttendance(deviceID: String, request: AttendanceLogRequest) {
+        mockMvc.post("/api/v1/attendance-logs") {
+            header("X-Device-ID", deviceID)
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(request)
+        }.andExpect { status { isOk() } }
     }
 }

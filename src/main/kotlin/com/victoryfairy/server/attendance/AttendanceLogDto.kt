@@ -31,7 +31,9 @@ data class AttendanceLogDto(
     val gameDate: String,
     val season: Int,
     val favoriteTeamID: String,
+    val favoriteTeamName: String,
     val opponentTeamID: String,
+    val opponentTeamName: String,
     val stadiumName: String,
     val result: String,
     val ourScore: Int?,
@@ -48,10 +50,19 @@ data class AttendanceLogDto(
     val linkedKBOGameID: String?,
     val gameSource: String?,
     val sourceLabel: String?,
+    val sourceDisclosure: String?,
+    val photoLocalRefs: List<String>,
+    val photoMetadata: List<AttendancePhotoMetadata>,
     val matchupText: String,
     val scoreText: String,
     val createdAt: String,
     val updatedAt: String,
+)
+
+data class AttendancePhotoMetadata(
+    val id: String,
+    val localRef: String,
+    val caption: String? = null,
 )
 
 data class AttendanceLogListResponse(

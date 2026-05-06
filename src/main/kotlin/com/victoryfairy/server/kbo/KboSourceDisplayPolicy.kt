@@ -12,7 +12,7 @@ class KboSourceDisplayPolicy(private val properties: AppProperties) {
         SCRAPED_DEV_SOURCE -> if (isProductionSafeMode()) SCRAPED_DEV_REVIEW_SOURCE_LABEL else SCRAPED_DEV_SOURCE_LABEL
         "admin-import", "admin-entry" -> "관리자 입력 데이터"
         "provider" -> "합법 데이터 제공사 데이터"
-        "official" -> "공식 허가 데이터"
+        "official" -> "확인된 외부 데이터"
         else -> "데이터 없음"
     }
 

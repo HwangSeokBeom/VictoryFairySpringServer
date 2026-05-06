@@ -28,7 +28,7 @@ The production Spring profile defaults to review-safe wording through `applicati
 
 - Local iOS development
 - Backend contract testing
-- UI state testing for schedules, results, attendance suggestions, statistics, feed, and calendar screens
+- UI state testing for schedules, results, attendance suggestions, statistics, feed, calendar, win-rate analysis, and match outlook screens
 
 ## Not Allowed Without Further Review
 
@@ -98,6 +98,18 @@ Scheduled, canceled, postponed, and incomplete-score rows are excluded. Draws ar
 For scraped-dev standings, `updatedAt` is based on the latest stored `KBOGame` update timestamp, not an official publication timestamp. With final rows, it is the latest update timestamp among final rows included in the standings. Without final rows, it falls back to the latest stored update timestamp for any row in the requested season; if the season has no stored rows, it is `null`.
 
 Do not describe this response as current licensed standings. It is local development/test data built from scraped-dev game rows.
+
+## App Review-Safe Feature Wording
+
+New app-facing feature surfaces should keep this positioning:
+
+- KBO-assisted screens: `참고용 경기 정보`
+- News: `뉴스는 외부 매체로 이동해 확인해 주세요.`
+- Match outlook: `관전 포인트`, `경기 전망`, and `응원 포인트`
+- Match outlook disclaimer: `공식 예측이나 베팅 정보가 아닙니다.`
+- Community: show the community policy URL and keep writes disabled until moderation operations are ready
+
+Avoid claims that imply licensed, complete, live, or provider-backed data. Match outlook must not include guarantees, outcome-hit claims, or 금전성 승부 정보.
 
 The default scheduler remains disabled:
 

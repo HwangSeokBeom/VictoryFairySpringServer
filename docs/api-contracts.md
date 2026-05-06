@@ -46,6 +46,11 @@ Failure:
 - `GET /api/v1/statistics/summary?season=2026`
 - `GET /api/v1/statistics/stadiums?season=2026`
 - `GET /api/v1/statistics/opponents?season=2026`
+- `GET /api/v1/analysis/win-rate?season=2026`
+- `GET /api/v1/news?teamID=samsung-lions&limit=20`
+- `POST /api/v1/match-outlook`
+- `GET /api/v1/community/posts`
+- `POST /api/v1/community/posts`
 - `POST /api/v1/ai/diary-draft`
 - `POST /api/v1/diary/template-draft`
 - `POST /api/v1/ticket/parse-ocr-text`
@@ -56,7 +61,9 @@ Device-owned endpoints require:
 X-Device-ID: <uuid-or-stable-device-id>
 ```
 
-Read-only seed/reference endpoints such as `/health`, `/api/v1/teams`, KBO games, and dev KBO update/status do not require device identity.
+Read-only seed/reference endpoints such as `/health`, `/api/v1/teams`, KBO games, news scaffold, community read scaffold, and dev KBO update/status do not require device identity.
+
+Personalized endpoints that read attendance history, including win-rate analysis and match outlook, require `X-Device-ID`.
 
 Dev KBO collector/update endpoints are local/test only. They are blocked for production Spring profiles and `NODE_ENV=production`. If `ADMIN_IMPORT_TOKEN` is configured, these endpoints require:
 
@@ -189,6 +196,206 @@ Collection/update summary shape:
   }
 }
 ```
+
+## Win-Rate Analysis
+
+`GET /api/v1/analysis/win-rate?season=2026` uses the requesting device's attendance logs only. It does not use league-wide standings.
+
+Draws and canceled games are counted in totals. The `winRate` denominator is wins plus losses only. If wins plus losses is below 3, the response includes a small-sample warning.
+
+```bash
+curl "http://localhost:8081/api/v1/analysis/win-rate?season=2026" \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "season": 2026,
+    "summary": {
+      "totalGames": 1,
+      "wins": 0,
+      "losses": 1,
+      "draws": 0,
+      "canceled": 0,
+      "winRate": 0.0,
+      "sampleWarning": "아직 표본이 적어 재미용으로만 봐주세요."
+    },
+    "opponentRankings": [
+      {
+        "teamID": "kia-tigers",
+        "teamName": "KIA 타이거즈",
+        "games": 1,
+        "wins": 0,
+        "losses": 1,
+        "draws": 0,
+        "winRate": 0.0
+      }
+    ],
+    "stadiumRankings": [
+      {
+        "stadiumName": "잠실야구장",
+        "games": 1,
+        "wins": 0,
+        "losses": 1,
+        "draws": 0,
+        "winRate": 0.0
+      }
+    ],
+    "recentTrend": ["L"],
+    "insights": [
+      {
+        "title": "최근 흐름",
+        "body": "최근 직관은 패배였어요. 다음 기록에서 흐름을 바꿔봐요."
+      }
+    ]
+  }
+}
+```
+
+Opponent and stadium rankings sort by `winRate` descending, then `games` descending, then name ascending.
+
+## News
+
+`GET /api/v1/news?teamID=samsung-lions&limit=20` returns link-out baseball news cards. With `NEWS_PROVIDER=naver`, the server calls Naver Search News API using server-only environment variables. Do not put Naver credentials in iOS, source code, docs, logs, responses, errors, tests, or screenshots.
+
+The API returns title, summary, date, source, link, and team IDs only. It does not return full article bodies, scrape article pages, expose provider debug fields, or claim official KBO data, official news, real-time broadcast, or any partnership. Full articles open externally.
+
+```bash
+curl "http://localhost:8081/api/v1/news?teamID=samsung-lions&limit=20"
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "naver-...",
+        "title": "삼성 라이온즈 뉴스 제목",
+        "summary": "뉴스 요약",
+        "sourceName": "네이버 뉴스",
+        "publishedAt": "2026-05-06T12:00:00+09:00",
+        "url": "https://example.com/article",
+        "teamIDs": ["samsung-lions"]
+      }
+    ],
+    "message": null,
+    "sourceDisclosure": "뉴스는 외부 매체로 이동해 확인해 주세요."
+  }
+}
+```
+
+Supported team query mapping:
+
+- `samsung-lions` -> `삼성 라이온즈 야구`
+- `kia-tigers` -> `KIA 타이거즈 야구`
+- `hanwha-eagles` -> `한화 이글스 야구`
+- `lg-twins` -> `LG 트윈스 야구`
+- `doosan-bears` -> `두산 베어스 야구`
+- `lotte-giants` -> `롯데 자이언츠 야구`
+- `ssg-landers` -> `SSG 랜더스 야구`
+- `kt-wiz` -> `KT 위즈 야구`
+- `nc-dinos` -> `NC 다이노스 야구`
+- `kiwoom-heroes` -> `키움 히어로즈 야구`
+
+Missing or unknown `teamID` uses `KBO 야구`. `limit` defaults to 20 and is capped at 20.
+
+Server environment:
+
+```bash
+NEWS_PROVIDER=naver
+NAVER_CLIENT_ID=replace-with-naver-client-id
+NAVER_CLIENT_SECRET=replace-with-naver-client-secret
+NAVER_NEWS_BASE_URL=https://openapi.naver.com/v1/search/news.json
+NEWS_CACHE_TTL_SECONDS=1800
+```
+
+If `NEWS_PROVIDER` is not `naver`, the server uses the local/dev sample provider. If Naver credentials are missing in local/dev, the server returns local/dev sample news. If Naver credentials are missing in production, the server returns `success=true`, `items=[]`, and `message="뉴스 제공 설정이 준비되지 않았습니다."`. If a Naver secret was exposed anywhere, rotate it before production use.
+
+## Match Outlook
+
+`POST /api/v1/match-outlook` returns safe `관전 포인트`/`경기 전망` style text. It is informational and entertainment-only, derived from the requester's attendance logs and optional local reference context.
+
+```bash
+curl -X POST http://localhost:8081/api/v1/match-outlook \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -d '{
+    "favoriteTeamID": "samsung-lions",
+    "opponentTeamID": "kia-tigers",
+    "date": "2026-04-12",
+    "stadiumName": "잠실야구장"
+  }'
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "오늘의 관전 포인트",
+    "summary": "내 직관 기록과 참고용 경기 정보를 바탕으로 본 응원 포인트예요.",
+    "points": [
+      "최근 직관 기록 기준으로는 KIA전 표본이 아직 적어요.",
+      "잠실야구장 기록을 더 쌓으면 구장별 흐름을 더 잘 볼 수 있어요."
+    ],
+    "confidenceLabel": "재미용",
+    "disclaimer": "공식 예측이나 베팅 정보가 아닙니다."
+  }
+}
+```
+
+Do not expose guarantees, outcome-hit claims, or 금전성 승부 정보. User-facing Korean should prefer `경기 전망`, `관전 포인트`, and `응원 포인트`.
+
+## Community Scaffold
+
+`GET /api/v1/community/posts` is public and returns an empty state until community moderation and operations are ready.
+
+```bash
+curl http://localhost:8081/api/v1/community/posts
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [],
+    "message": "응원톡은 준비 중입니다.",
+    "policyURL": "https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html"
+  }
+}
+```
+
+`POST /api/v1/community/posts` exists but is disabled by default:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/community/posts \
+  -H "Content-Type: application/json" \
+  -d '{"content":"삼성 화이팅"}'
+```
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "COMMUNITY_DISABLED",
+    "message": "응원톡 작성은 아직 준비 중입니다."
+  }
+}
+```
+
+Set `COMMUNITY_ENABLED=true` only after moderation operations are ready. The scaffold enforces text-only posts, 300-character maximum, a basic prohibited-content guard, pending-review status, and report availability.
+
+## Share Card Support
+
+Share card rendering remains client-side. Attendance detail and feed DTOs include server-side data needed by the client:
+
+- `date`, `gameDate`, `matchupText`, `scoreText`, `result`
+- `stadiumName`, `shortMemo`, `diaryText`
+- `favoriteTeamID`, `favoriteTeamName`, `opponentTeamID`, `opponentTeamName`
+- `sourceLabel`, `sourceDisclosure` when the record is linked to reference context
+- `photoLocalRefs` and `photoMetadata` placeholders; the server does not render or store card images
 
 ## AI Diary Draft
 

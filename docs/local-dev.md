@@ -250,12 +250,65 @@ The parser returns candidates and warnings only. The app must show the result fo
 
 ## Device-Owned APIs
 
-Use `X-Device-ID` for preferences, attendance logs, feed, calendar, and statistics:
+Use `X-Device-ID` for preferences, attendance logs, feed, calendar, statistics, win-rate analysis, and match outlook:
 
 ```bash
 curl -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
   "http://localhost:8081/api/v1/statistics/summary?season=2026"
 ```
+
+Win-rate analysis:
+
+```bash
+curl -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  "http://localhost:8081/api/v1/analysis/win-rate?season=2026"
+```
+
+Safe match outlook:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/match-outlook \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -d '{
+    "favoriteTeamID": "samsung-lions",
+    "opponentTeamID": "kia-tigers",
+    "date": "2026-04-12",
+    "stadiumName": "잠실야구장"
+  }'
+```
+
+News:
+
+```bash
+curl "http://localhost:8081/api/v1/news?teamID=samsung-lions&limit=20"
+```
+
+For real server-side baseball news, configure Naver Search News API credentials only in the server environment:
+
+```bash
+NEWS_PROVIDER=naver
+NAVER_CLIENT_ID=replace-with-naver-client-id
+NAVER_CLIENT_SECRET=replace-with-naver-client-secret
+NAVER_NEWS_BASE_URL=https://openapi.naver.com/v1/search/news.json
+NEWS_CACHE_TTL_SECONDS=1800
+```
+
+Do not put Naver credentials in iOS. The News API returns normalized `title`, `summary`, `publishedAt`, `sourceName`, `url`, and `teamIDs` only; full articles open externally through the returned link. If a secret was exposed, rotate it before production.
+
+Community scaffold:
+
+```bash
+curl http://localhost:8081/api/v1/community/posts
+```
+
+Community writes are disabled unless explicitly enabled:
+
+```bash
+COMMUNITY_ENABLED=false
+```
+
+Keep the match outlook positioned as `경기 전망`/`관전 포인트`. It must not be presented as guaranteed outcome guidance or 금전성 승부 정보.
 
 ## Tests
 

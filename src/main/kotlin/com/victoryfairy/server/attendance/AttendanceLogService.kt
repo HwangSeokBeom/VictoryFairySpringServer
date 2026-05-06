@@ -83,8 +83,10 @@ class AttendanceLogService(
     }
 
     fun toDto(log: AttendanceLogEntity): AttendanceLogDto {
-        val favorite = TeamSeed.find(log.favoriteTeamID)?.shortName ?: log.favoriteTeamID
-        val opponent = TeamSeed.find(log.opponentTeamID)?.shortName ?: log.opponentTeamID
+        val favoriteTeam = TeamSeed.find(log.favoriteTeamID)
+        val opponentTeam = TeamSeed.find(log.opponentTeamID)
+        val favorite = favoriteTeam?.shortName ?: log.favoriteTeamID
+        val opponent = opponentTeam?.shortName ?: log.opponentTeamID
         val resultLabel = mapOf("win" to "승", "loss" to "패", "draw" to "무", "canceled" to "취소")[log.result] ?: log.result
         val scoreText = if (log.result == "canceled") "취소" else if (log.ourScore != null && log.opponentScore != null) "${log.ourScore}:${log.opponentScore} $resultLabel" else resultLabel
         val tags = runCatching { objectMapper.readValue<List<String>>(log.highlightTagsJson) }.getOrDefault(emptyList())
@@ -95,7 +97,9 @@ class AttendanceLogService(
             gameDate = log.date.toString(),
             season = log.season,
             favoriteTeamID = log.favoriteTeamID,
+            favoriteTeamName = favoriteTeam?.name ?: log.favoriteTeamID,
             opponentTeamID = log.opponentTeamID,
+            opponentTeamName = opponentTeam?.name ?: log.opponentTeamID,
             stadiumName = log.stadiumName,
             result = log.result,
             ourScore = log.ourScore,
@@ -112,10 +116,18 @@ class AttendanceLogService(
             linkedKBOGameID = log.linkedKBOGameID,
             gameSource = log.gameSource,
             sourceLabel = log.sourceLabel,
+            sourceDisclosure = sourceDisclosure(log),
+            photoLocalRefs = emptyList(),
+            photoMetadata = emptyList(),
             matchupText = "$favorite vs $opponent",
             scoreText = scoreText,
             createdAt = log.createdAt.toString(),
             updatedAt = log.updatedAt.toString(),
         )
+    }
+
+    private fun sourceDisclosure(log: AttendanceLogEntity): String? {
+        if (log.linkedKBOGameID.isNullOrBlank() && log.gameSource.isNullOrBlank() && log.sourceLabel.isNullOrBlank()) return null
+        return "이 정보는 기록 입력을 돕기 위한 참고용 경기 정보입니다."
     }
 }

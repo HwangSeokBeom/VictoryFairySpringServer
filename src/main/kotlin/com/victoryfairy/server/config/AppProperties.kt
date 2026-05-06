@@ -12,6 +12,8 @@ class AppPropertiesConfig
 data class AppProperties(
     val kbo: KboProperties = KboProperties(),
     val ai: AiProperties = AiProperties(),
+    val community: CommunityProperties = CommunityProperties(),
+    val news: NewsProperties = NewsProperties(),
 ) {
     data class KboProperties(
         val scrapedDev: ScrapedDevProperties = ScrapedDevProperties(),
@@ -36,5 +38,18 @@ data class AppProperties(
         val groqModel: String = "llama-3.1-8b-instant",
         val dailyLimit: Int = 10,
         val timeoutSeconds: Long = 12,
+    )
+
+    data class CommunityProperties(
+        val enabled: Boolean = false,
+        val policyUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html",
+    )
+
+    data class NewsProperties(
+        val provider: String = "local",
+        val naverClientId: String = "",
+        val naverClientSecret: String = "",
+        val naverNewsBaseUrl: String = "https://openapi.naver.com/v1/search/news.json",
+        val cacheTtlSeconds: Long = 1800,
     )
 }
