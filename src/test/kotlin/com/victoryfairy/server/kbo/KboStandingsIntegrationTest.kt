@@ -25,6 +25,9 @@ import java.time.LocalDate
     properties = [
         "spring.datasource.url=jdbc:h2:mem:kbo-standings;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "spring.jpa.hibernate.ddl-auto=create-drop",
+        "victory-fairy.kbo.source-label-mode=review",
+        "victory-fairy.kbo.scraped-dev.enabled=true",
+        "victory-fairy.kbo.scraped-dev.admin-import-token=test-admin-token",
     ],
 )
 class KboStandingsIntegrationTest {
@@ -40,7 +43,9 @@ class KboStandingsIntegrationTest {
 
     @Test
     fun `seeded sample game ranks Samsung above Hanwha`() {
-        mockMvc.post("/api/v1/dev/kbo/seed-sample-game")
+        mockMvc.post("/api/v1/dev/kbo/seed-sample-game") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
+        }
             .andExpect { status { isOk() } }
 
         mockMvc.get("/api/v1/kbo/standings") {
@@ -48,7 +53,7 @@ class KboStandingsIntegrationTest {
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.source") { value("scraped-dev") } }
-            .andExpect { jsonPath("$.data.sourceLabel") { value("개발용 외부 수집 데이터") } }
+            .andExpect { jsonPath("$.data.sourceLabel") { value("참고용 경기 정보") } }
             .andExpect { jsonPath("$.data.updatedAt") { exists() } }
             .andExpect { jsonPath("$.data.items", hasSize<Any>(2)) }
             .andExpect { jsonPath("$.data.items[0].rank") { value(1) } }
@@ -100,7 +105,7 @@ class KboStandingsIntegrationTest {
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.source") { value("scraped-dev") } }
-            .andExpect { jsonPath("$.data.sourceLabel") { value("개발용 외부 수집 데이터") } }
+            .andExpect { jsonPath("$.data.sourceLabel") { value("참고용 경기 정보") } }
             .andExpect { jsonPath("$.data.updatedAt") { value("2026-04-02T18:30:00.000+09:00") } }
             .andExpect { jsonPath("$.data.items", hasSize<Any>(4)) }
     }
@@ -147,7 +152,8 @@ class KboStandingsIntegrationTest {
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.source") { value("scraped-dev") } }
-            .andExpect { jsonPath("$.data.sourceLabel") { value("개발용 외부 수집 데이터") } }
+            .andExpect { jsonPath("$.data.sourceLabel") { value("참고용 경기 정보") } }
+            .andExpect { jsonPath("$.data.sourceDisclosure") { exists() } }
             .andExpect { jsonPath("$.data.updatedAt") { value(null) } }
             .andExpect { jsonPath("$.data.items", hasSize<Any>(0)) }
             .andExpect { jsonPath("$.data.message") { value("수집된 경기 결과가 아직 없습니다.") } }
@@ -182,7 +188,8 @@ class KboStandingsIntegrationTest {
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.source") { value("scraped-dev") } }
-            .andExpect { jsonPath("$.data.sourceLabel") { value("개발용 외부 수집 데이터") } }
+            .andExpect { jsonPath("$.data.sourceLabel") { value("참고용 경기 정보") } }
+            .andExpect { jsonPath("$.data.sourceDisclosure") { exists() } }
             .andExpect { jsonPath("$.data.updatedAt") { value("2026-04-02T14:45:00.000+09:00") } }
             .andExpect { jsonPath("$.data.items", hasSize<Any>(0)) }
             .andExpect { jsonPath("$.data.message") { value("수집된 경기 결과가 아직 없습니다.") } }
@@ -223,5 +230,9 @@ class KboStandingsIntegrationTest {
                 result.entity.id,
             )
         }
+    }
+
+    companion object {
+        private const val TEST_ADMIN_TOKEN = "test-admin-token"
     }
 }

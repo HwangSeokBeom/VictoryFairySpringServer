@@ -25,6 +25,15 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
     properties = [
         "spring.datasource.url=jdbc:h2:mem:api-integration;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "spring.jpa.hibernate.ddl-auto=create-drop",
+        "victory-fairy.kbo.source-label-mode=review",
+        "victory-fairy.kbo.scraped-dev.enabled=true",
+        "victory-fairy.kbo.scraped-dev.admin-import-token=test-admin-token",
+        "victory-fairy.kbo.scraped-dev.scheduler-enabled=false",
+        "victory-fairy.ai.diary-enabled=false",
+        "victory-fairy.ai.match-outlook-enabled=false",
+        "victory-fairy.news.provider=local",
+        "victory-fairy.news.naver-client-id=",
+        "victory-fairy.news.naver-client-secret=",
     ],
 )
 class ApiIntegrationTest {
@@ -232,7 +241,9 @@ class ApiIntegrationTest {
 
     @Test
     fun `sample KBO game returns favorite team perspective for both teams`() {
-        mockMvc.post("/api/v1/dev/kbo/seed-sample-game")
+        mockMvc.post("/api/v1/dev/kbo/seed-sample-game") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
+        }
             .andExpect { status { isOk() } }
 
         mockMvc.get("/api/v1/kbo/games") {
@@ -241,7 +252,7 @@ class ApiIntegrationTest {
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.source") { value("scraped-dev") } }
-            .andExpect { jsonPath("$.data.sourceLabel") { value("개발용 외부 수집 데이터") } }
+            .andExpect { jsonPath("$.data.sourceLabel") { value("참고용 경기 정보") } }
             .andExpect { jsonPath("$.data.items[0].homeTeamID") { value("hanwha-eagles") } }
             .andExpect { jsonPath("$.data.items[0].awayTeamID") { value("samsung-lions") } }
             .andExpect { jsonPath("$.data.items[0].attendanceSuggestion.result") { value("loss") } }
@@ -269,7 +280,16 @@ class ApiIntegrationTest {
     fun `AI disabled endpoint returns AI_FEATURE_DISABLED failure envelope`() {
         mockMvc.post("/api/v1/ai/diary-draft") {
             contentType = MediaType.APPLICATION_JSON
-            content = "{}"
+            content = """
+                {
+                  "gameDate": "2026-04-16",
+                  "favoriteTeamName": "한화 이글스",
+                  "opponentTeamName": "삼성 라이온즈",
+                  "stadiumName": "대전 한화생명 볼파크",
+                  "result": "loss",
+                  "scoreText": "1:6 패"
+                }
+            """.trimIndent()
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.success") { value(false) } }
@@ -279,7 +299,9 @@ class ApiIntegrationTest {
 
     @Test
     fun `scheduler is disabled by default`() {
-        mockMvc.get("/api/v1/dev/kbo/update-scraped-dev/status")
+        mockMvc.get("/api/v1/dev/kbo/update-scraped-dev/status") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
+        }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.enabled") { value(false) } }
             .andExpect { jsonPath("$.data.source") { value("scraped-dev") } }
@@ -396,7 +418,7 @@ class ApiIntegrationTest {
             .andExpect { jsonPath("$.data.newsReferences", hasSize<Any>(0)) }
             .andExpect { jsonPath("$.data.confidenceLabel") { value("재미용") } }
             .andExpect { jsonPath("$.data.generatedBy") { value("template") } }
-            .andExpect { jsonPath("$.data.disclaimer") { value("공식 예측이나 승부 정보가 아닙니다.") } }
+            .andExpect { jsonPath("$.data.disclaimer") { value("공식 경기 정보나 결과 보장이 아닙니다.") } }
             .andReturn()
 
         val body = result.response.contentAsString
@@ -471,5 +493,9 @@ class ApiIntegrationTest {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(request)
         }.andExpect { status { isOk() } }
+    }
+
+    companion object {
+        private const val TEST_ADMIN_TOKEN = "test-admin-token"
     }
 }

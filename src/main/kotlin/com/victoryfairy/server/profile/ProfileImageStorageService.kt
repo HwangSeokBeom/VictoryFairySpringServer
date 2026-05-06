@@ -14,9 +14,13 @@ import java.util.UUID
 import javax.imageio.IIOImage
 import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
+import org.springframework.core.env.Environment
 
 @Service
-class ProfileImageStorageService(private val properties: AppProperties) {
+class ProfileImageStorageService(
+    private val properties: AppProperties,
+    private val environment: Environment,
+) {
     fun store(image: MultipartFile, oldFilename: String?): StoredProfileImage {
         val config = properties.profileImage
         if (!config.uploadEnabled) {
@@ -62,7 +66,9 @@ class ProfileImageStorageService(private val properties: AppProperties) {
 
     fun toUrl(filename: String?): String? {
         val safeFilename = safeStoredFilename(filename) ?: return null
-        return "/uploads/profile/$safeFilename"
+        val path = "/uploads/profile/$safeFilename"
+        if (!isProductionProfile()) return path
+        return "${properties.publicBaseUrl.trimEnd('/')}$path"
     }
 
     private fun validateContentTypeAndExtension(image: MultipartFile): SourceImageType {
@@ -153,6 +159,9 @@ class ProfileImageStorageService(private val properties: AppProperties) {
     }
 
     private fun uploadDir(): Path = Paths.get(properties.profileImage.uploadDir).toAbsolutePath().normalize()
+
+    private fun isProductionProfile(): Boolean =
+        environment.activeProfiles.any { it.equals("prod", ignoreCase = true) || it.equals("production", ignoreCase = true) }
 
     private enum class SourceImageType {
         JPEG,

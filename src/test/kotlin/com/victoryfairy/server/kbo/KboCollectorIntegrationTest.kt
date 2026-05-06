@@ -28,6 +28,9 @@ import org.springframework.test.web.servlet.post
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "victory-fairy.kbo.scraped-dev.input-json=build/tmp/test-kbo-import.json",
         "victory-fairy.kbo.scraped-dev.state-path=build/tmp/test-kbo-state.json",
+        "victory-fairy.kbo.scraped-dev.enabled=true",
+        "victory-fairy.kbo.scraped-dev.admin-import-token=test-admin-token",
+        "victory-fairy.kbo.source-label-mode=review",
     ],
 )
 class KboCollectorIntegrationTest {
@@ -47,6 +50,7 @@ class KboCollectorIntegrationTest {
         stubSchedulePages()
 
         mockMvc.post("/api/v1/dev/kbo/collect-scraped-dev") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
             contentType = MediaType.APPLICATION_JSON
             content = """{"season":2026,"seriesType":"REGULAR_SEASON"}"""
         }
@@ -57,6 +61,7 @@ class KboCollectorIntegrationTest {
             .andExpect { jsonPath("$.data.statusCounts.final") { value(1) } }
 
         mockMvc.post("/api/v1/dev/kbo/collect-scraped-dev") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
             contentType = MediaType.APPLICATION_JSON
             content = """{"season":2026,"seriesType":"REGULAR_SEASON"}"""
         }
@@ -70,7 +75,7 @@ class KboCollectorIntegrationTest {
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.source") { value("scraped-dev") } }
-            .andExpect { jsonPath("$.data.sourceLabel") { value("개발용 외부 수집 데이터") } }
+            .andExpect { jsonPath("$.data.sourceLabel") { value("참고용 경기 정보") } }
             .andExpect { jsonPath("$.data.items[0].attendanceSuggestion.matchupText") { value("한화 vs 삼성") } }
             .andExpect { jsonPath("$.data.items[0].attendanceSuggestion.scoreText") { value("1:6 패") } }
             .andExpect { jsonPath("$.data.items[0].attendanceSuggestion.result") { value("loss") } }
@@ -92,6 +97,7 @@ class KboCollectorIntegrationTest {
         stubSchedulePages()
 
         mockMvc.post("/api/v1/dev/kbo/update-scraped-dev") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
             contentType = MediaType.APPLICATION_JSON
             content = "{}"
         }
@@ -110,6 +116,7 @@ class KboCollectorIntegrationTest {
         )
 
         mockMvc.post("/api/v1/dev/kbo/update-scraped-dev") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
             contentType = MediaType.APPLICATION_JSON
             content = """{"mode":"json-import"}"""
         }
@@ -138,4 +145,8 @@ class KboCollectorIntegrationTest {
           </tr>
         </tbody></table>
     """.trimIndent()
+
+    companion object {
+        private const val TEST_ADMIN_TOKEN = "test-admin-token"
+    }
 }

@@ -9,8 +9,14 @@ import java.nio.file.Paths
 @Configuration
 class WebConfig(private val properties: AppProperties) : WebMvcConfigurer {
     override fun addCorsMappings(registry: CorsRegistry) {
+        val allowedOriginPatterns = properties.cors.allowedOriginPatterns
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        if (allowedOriginPatterns.isEmpty()) return
+
         registry.addMapping("/**")
-            .allowedOriginPatterns("*")
+            .allowedOriginPatterns(*allowedOriginPatterns.toTypedArray())
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")
     }

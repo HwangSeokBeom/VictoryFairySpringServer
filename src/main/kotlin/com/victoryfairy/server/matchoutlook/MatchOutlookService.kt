@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service
 
 private const val OUTLOOK_SUMMARY_WITH_NEWS = "최근 야구 소식과 내 직관 기록을 바탕으로 오늘 경기를 더 재미있게 볼 포인트를 정리했어요."
 private const val OUTLOOK_SUMMARY_WITHOUT_NEWS = "내 직관 기록으로 오늘 경기를 더 재미있게 볼 포인트를 정리했어요."
-private const val OUTLOOK_DISCLAIMER = "공식 예측이나 승부 정보가 아닙니다."
+private const val OUTLOOK_DISCLAIMER = "공식 경기 정보나 결과 보장이 아닙니다."
 
 @Service
 class MatchOutlookService(
@@ -193,7 +193,7 @@ class MatchOutlookService(
         - 허용 팀: ${allowedTeamKeywords(context).joinToString(", ")}
         - 관련 없는 팀이나 선수는 제공된 accepted news context에 직접 등장하고 이 matchup과 직접 관련된 경우가 아니면 언급하지 않습니다.
         - news context가 비어 있거나 약하면 "최근 관련 뉴스는 제한적"이라고 말하고, 관련 없는 KBO 뉴스를 사용하지 않습니다.
-        - 공식 예측, 베팅, 배당, 확률, 적중률처럼 보이는 표현을 쓰지 않습니다.
+        - 공식 경기 정보, 베팅, 배당, 확률, 적중률처럼 보이는 표현을 쓰지 않습니다.
         - 승패를 단정하거나 선수 실명과 현장 사건을 새로 만들지 않습니다.
         - unrelatedTeams=${rejectedTeamKeywords(context).joinToString(", ")}
         - 3~5개 points만 작성하고, 각 body는 140자 이하, 재미용 관전 포인트 톤으로 작성합니다.

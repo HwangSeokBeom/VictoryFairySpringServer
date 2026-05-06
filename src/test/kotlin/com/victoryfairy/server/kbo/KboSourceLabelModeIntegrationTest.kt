@@ -18,6 +18,8 @@ import org.springframework.test.web.servlet.post
         "spring.datasource.url=jdbc:h2:mem:kbo-source-review;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "victory-fairy.kbo.source-label-mode=review",
+        "victory-fairy.kbo.scraped-dev.enabled=true",
+        "victory-fairy.kbo.scraped-dev.admin-import-token=test-admin-token",
     ],
 )
 class KboSourceLabelModeIntegrationTest {
@@ -25,7 +27,9 @@ class KboSourceLabelModeIntegrationTest {
 
     @Test
     fun `sourceLabel mode review returns safe scraped-dev wording`() {
-        mockMvc.post("/api/v1/dev/kbo/seed-sample-game")
+        mockMvc.post("/api/v1/dev/kbo/seed-sample-game") {
+            header("X-Admin-Token", TEST_ADMIN_TOKEN)
+        }
             .andExpect { status { isOk() } }
 
         mockMvc.get("/api/v1/kbo/games") {
@@ -43,5 +47,9 @@ class KboSourceLabelModeIntegrationTest {
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.data.sourceLabel") { value("참고용 경기 정보") } }
             .andExpect { jsonPath("$.data.sourceDisclosure") { exists() } }
+    }
+
+    companion object {
+        private const val TEST_ADMIN_TOKEN = "test-admin-token"
     }
 }

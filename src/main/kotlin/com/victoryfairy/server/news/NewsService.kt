@@ -128,9 +128,12 @@ class NewsService(
         )
     }
 
-    private fun isProduction(): Boolean =
-        environment.activeProfiles.any { it.equals("prod", true) || it.equals("production", true) } ||
+    private fun isProduction(): Boolean {
+        val activeProfiles = environment.activeProfiles.map { it.lowercase() }.toSet()
+        if ("test" in activeProfiles) return false
+        return activeProfiles.any { it == "prod" || it == "production" } ||
             System.getenv("NODE_ENV").equals("production", ignoreCase = true)
+    }
 
     private data class CacheEntry(
         val data: NewsData,

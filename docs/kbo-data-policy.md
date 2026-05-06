@@ -106,7 +106,7 @@ New app-facing feature surfaces should keep this positioning:
 - KBO-assisted screens: `참고용 경기 정보`
 - News: `뉴스는 외부 매체로 이동해 확인해 주세요.`
 - Match outlook: `관전 포인트`, `경기 전망`, and `응원 포인트`
-- Match outlook disclaimer: `공식 예측이나 승부 정보가 아닙니다.`
+- Match outlook disclaimer: `공식 경기 정보나 결과 보장이 아닙니다.`
 - Community: show the full community policy URL, require a lightweight profile before posting, keep posts text-only in MVP, and guard posting with moderation
 
 Avoid claims that imply licensed, complete, live, or provider-backed data. Match outlook must not include guarantees, outcome-hit claims, or 금전성 승부 정보.

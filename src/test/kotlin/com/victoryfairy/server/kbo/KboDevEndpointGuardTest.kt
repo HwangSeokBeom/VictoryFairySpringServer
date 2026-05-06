@@ -26,7 +26,9 @@ class KboDevEndpointGuardTest {
                 scrapedDev = AppProperties.ScrapedDevProperties(adminImportToken = "secret")
             )
         )
-        val guard = KboDevEndpointGuard(properties, MockEnvironment())
+        val environment = MockEnvironment()
+        environment.setActiveProfiles("test")
+        val guard = KboDevEndpointGuard(properties, environment)
 
         assertFailsWith<ApiException> { guard.assertAllowed("wrong") }
         guard.assertAllowed("secret")

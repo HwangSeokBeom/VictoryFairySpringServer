@@ -10,6 +10,8 @@ class AppPropertiesConfig
 
 @ConfigurationProperties(prefix = "victory-fairy")
 data class AppProperties(
+    val publicBaseUrl: String = "http://localhost:8081",
+    val cors: CorsProperties = CorsProperties(),
     val kbo: KboProperties = KboProperties(),
     val ai: AiProperties = AiProperties(),
     val profileImage: ProfileImageProperties = ProfileImageProperties(),
@@ -17,6 +19,10 @@ data class AppProperties(
     val legal: LegalProperties = LegalProperties(),
     val news: NewsProperties = NewsProperties(),
 ) {
+    data class CorsProperties(
+        val allowedOriginPatterns: String = "*",
+    )
+
     data class KboProperties(
         val scrapedDev: ScrapedDevProperties = ScrapedDevProperties(),
         val sourceLabelMode: String = "dev",

@@ -564,7 +564,7 @@ curl -X POST http://localhost:8081/api/v1/match-outlook \
     ],
     "confidenceLabel": "재미용",
     "generatedBy": "ai",
-    "disclaimer": "공식 예측이나 승부 정보가 아닙니다."
+    "disclaimer": "공식 경기 정보나 결과 보장이 아닙니다."
   }
 }
 ```

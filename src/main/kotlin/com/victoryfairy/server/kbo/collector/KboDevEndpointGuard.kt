@@ -23,7 +23,10 @@ class KboDevEndpointGuard(
         }
     }
 
-    fun isProductionLike(): Boolean =
-        environment.activeProfiles.any { it.equals("prod", true) || it.equals("production", true) } ||
+    fun isProductionLike(): Boolean {
+        val activeProfiles = environment.activeProfiles.map { it.lowercase() }.toSet()
+        if ("test" in activeProfiles) return false
+        return activeProfiles.any { it == "prod" || it == "production" } ||
             System.getenv("NODE_ENV").equals("production", ignoreCase = true)
+    }
 }

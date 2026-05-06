@@ -8,6 +8,11 @@ const val SCRAPED_DEV_SOURCE_DISCLOSURE = "이 정보는 기록 입력을 돕기
 
 @Component
 class KboSourceDisplayPolicy(private val properties: AppProperties) {
+    fun source(source: String): String = when {
+        source == SCRAPED_DEV_SOURCE && hidesInternalSource() -> "reference"
+        else -> source
+    }
+
     fun label(source: String): String = when (source) {
         SCRAPED_DEV_SOURCE -> if (isProductionSafeMode()) SCRAPED_DEV_REVIEW_SOURCE_LABEL else SCRAPED_DEV_SOURCE_LABEL
         "admin-import", "admin-entry" -> "관리자 입력 데이터"
@@ -23,4 +28,7 @@ class KboSourceDisplayPolicy(private val properties: AppProperties) {
 
     private fun isProductionSafeMode(): Boolean =
         properties.kbo.sourceLabelMode.trim().lowercase() in setOf("review", "production", "prod", "production-safe")
+
+    private fun hidesInternalSource(): Boolean =
+        properties.kbo.sourceLabelMode.trim().lowercase() in setOf("production", "prod", "production-safe")
 }

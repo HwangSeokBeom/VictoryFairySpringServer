@@ -24,12 +24,12 @@ class KboGameService(
         } else {
             repository.findByDateAndHomeTeamIDOrDateAndAwayTeamIDOrderByTimeAscGameIDAsc(date, teamID, date, teamID)
         }
+        val source = pickSource(games.map { it.source })
         val items = games.map { toResponse(it, teamID) }
-        val source = pickSource(items)
         return KboGamesData(
             date.toString(),
             teamID,
-            source,
+            sourceDisplayPolicy.source(source),
             sourceDisplayPolicy.label(source),
             sourceDisplayPolicy.disclosure(source),
             items,
@@ -38,6 +38,7 @@ class KboGameService(
     }
 
     fun standings(season: Int): KboStandingsData {
+        val latestSeasonGameUpdatedAt = repository.findTopBySeasonOrderByUpdatedAtDesc(season)?.updatedAt
         val games = repository.findBySeasonAndStatusAndHomeScoreIsNotNullAndAwayScoreIsNotNullOrderByDateAscTimeAscGameIDAsc(season, "final")
         val latestFinalUpdatedAt = repository
             .findTopBySeasonAndStatusAndHomeScoreIsNotNullAndAwayScoreIsNotNullOrderByUpdatedAtDesc(season, "final")
@@ -45,9 +46,10 @@ class KboGameService(
         if (games.isEmpty()) {
             return KboStandingsData(
                 season = season,
+                source = sourceDisplayPolicy.source(SCRAPED_DEV_SOURCE),
                 sourceLabel = sourceDisplayPolicy.label(SCRAPED_DEV_SOURCE),
                 sourceDisclosure = sourceDisplayPolicy.disclosure(SCRAPED_DEV_SOURCE),
-                updatedAt = repository.findTopBySeasonOrderByUpdatedAtDesc(season)?.updatedAt?.formatKboStandingsUpdatedAt(),
+                updatedAt = latestSeasonGameUpdatedAt?.formatKboStandingsUpdatedAt(),
                 items = emptyList(),
                 message = "수집된 경기 결과가 아직 없습니다.",
             )
@@ -90,6 +92,7 @@ class KboGameService(
 
         return KboStandingsData(
             season = season,
+            source = sourceDisplayPolicy.source(SCRAPED_DEV_SOURCE),
             sourceLabel = sourceDisplayPolicy.label(SCRAPED_DEV_SOURCE),
             sourceDisclosure = sourceDisplayPolicy.disclosure(SCRAPED_DEV_SOURCE),
             updatedAt = latestFinalUpdatedAt?.formatKboStandingsUpdatedAt(),
@@ -169,7 +172,7 @@ class KboGameService(
             game.winnerTeamID,
             game.resultSummary,
             tags,
-            game.source,
+            sourceDisplayPolicy.source(game.source),
             sourceDisplayPolicy.label(game.source),
             sourceDisplayPolicy.disclosure(game.source),
             links,
@@ -240,10 +243,10 @@ private class MutableStanding(
     }
 }
 
-fun pickSource(items: List<KboGameResponseItem>): String = when {
-    items.isEmpty() -> "unavailable"
-    items.any { it.source == SCRAPED_DEV_SOURCE } -> SCRAPED_DEV_SOURCE
-    else -> items.first().source
+fun pickSource(sources: List<String>): String = when {
+    sources.isEmpty() -> "unavailable"
+    sources.any { it == SCRAPED_DEV_SOURCE } -> SCRAPED_DEV_SOURCE
+    else -> sources.first()
 }
 
 fun winnerTeamID(homeTeamID: String, awayTeamID: String, homeScore: Int?, awayScore: Int?): String? = when {

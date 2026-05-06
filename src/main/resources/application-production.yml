@@ -1,7 +1,72 @@
+server:
+  port: ${SERVER_PORT:8081}
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:h2:file:./data/victoryfairy-prod-temp;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE}}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+  h2:
+    console:
+      enabled: false
+  devtools:
+    add-properties: false
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: false
+        show_sql: false
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: INFO
+    com.victoryfairy.server.config.RequestMappingLogger: OFF
+
 victory-fairy:
+  public-base-url: ${PUBLIC_BASE_URL:http://victoryfairy.duckdns.org}
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
   kbo:
-    source-label-mode: ${KBO_SOURCE_LABEL_MODE:review}
+    source-label-mode: ${KBO_SOURCE_LABEL_MODE:production}
+    scraped-dev:
+      enabled: ${KBO_SCRAPED_DEV_ENABLED:false}
+      scheduler-enabled: ${KBO_SCRAPED_DEV_SCHEDULER_ENABLED:false}
   community:
     enabled: ${COMMUNITY_ENABLED:false}
     posts-require-profile: ${COMMUNITY_POSTS_REQUIRE_PROFILE:true}
     block-enabled: ${COMMUNITY_BLOCK_ENABLED:true}
+    policy-url: ${COMMUNITY_POLICY_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html}
+  profile-image:
+    upload-enabled: ${PROFILE_IMAGE_UPLOAD_ENABLED:false}
+    max-bytes: ${PROFILE_IMAGE_MAX_BYTES:2097152}
+    max-side: ${PROFILE_IMAGE_MAX_SIDE:512}
+    upload-dir: ${PROFILE_IMAGE_UPLOAD_DIR:data/uploads/profile}
+  legal:
+    app-homepage-url: ${APP_HOMEPAGE_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/}
+    terms-url: ${TERMS_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/terms.html}
+    privacy-policy-url: ${PRIVACY_POLICY_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/privacy.html}
+    support-url: ${SUPPORT_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/support.html}
+    account-deletion-url: ${ACCOUNT_DELETION_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/delete-account.html}
+    disclaimer-url: ${DISCLAIMER_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/disclaimer.html}
+    community-policy-url: ${COMMUNITY_POLICY_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html}
+  news:
+    provider: ${NEWS_PROVIDER:naver}
+    naver-client-id: ${NAVER_CLIENT_ID:}
+    naver-client-secret: ${NAVER_CLIENT_SECRET:}
+    naver-news-base-url: ${NAVER_NEWS_BASE_URL:https://openapi.naver.com/v1/search/news.json}
+    cache-ttl-seconds: ${NEWS_CACHE_TTL_SECONDS:1800}
