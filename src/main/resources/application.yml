@@ -1,0 +1,41 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: victoryfairy-spring-server
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:file:./data/victoryfairy-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: false
+    open-in-view: false
+  jackson:
+    default-property-inclusion: non_null
+
+victory-fairy:
+  kbo:
+    scraped-dev:
+      enabled: ${KBO_SCRAPED_DEV_ENABLED:true}
+      input-json: ${KBO_SCRAPED_DEV_INPUT_JSON:/Users/hwangseokbeom/Documents/GitHub/VictoryFairyCoreServer/input/kbo-scraper-2026.json}
+      scheduler-enabled: ${KBO_SCRAPED_DEV_SCHEDULER_ENABLED:false}
+      schedule-cron: ${KBO_SCRAPED_DEV_SCHEDULE_CRON:0 23 * * *}
+      season: ${KBO_SCRAPED_DEV_SEASON:2026}
+      min-interval-hours: ${KBO_SCRAPED_DEV_MIN_INTERVAL_HOURS:20}
+      state-path: ${KBO_SCRAPED_DEV_STATE_PATH:data/kbo/kbo_scraped_dev_update_state.json}
+      admin-import-token: ${ADMIN_IMPORT_TOKEN:}
+      request-delay-ms: ${KBO_SCRAPED_DEV_REQUEST_DELAY_MS:350}
+  ai:
+    diary-enabled: ${AI_DIARY_ENABLED:false}
+    groq-api-key: ${GROQ_API_KEY:}
+    groq-model: ${GROQ_MODEL:llama-3.1-8b-instant}

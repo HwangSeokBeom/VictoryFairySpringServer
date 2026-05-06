@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Gradle
+.gradle/
+build/
+
+# Kotlin
+.kotlin/
+
+# Local DB / runtime data
+data/
+*.db
+*.mv.db
+*.trace.db
+
+# Env / secrets
+.env
+*.env
+application-local.yml
+application-secret.yml
+
+# Logs
+logs/
+*.log
+
+# Generated / imported data
+input/
+data/kbo/generated/
