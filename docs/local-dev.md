@@ -16,6 +16,14 @@ Install Playwright browsers once if the collector cannot launch Chromium:
 
 Most local runs only need `./gradlew bootRun`; run the install task when the first collector request reports a missing browser.
 
+Optional local environment:
+
+```bash
+cp .env.example .env
+```
+
+Do not put real Groq keys in docs, source, screenshots, or iOS code. If a key was exposed in chat or local notes, rotate it before setting `GROQ_API_KEY` on the server.
+
 ## Run In Terminal
 
 ```bash
@@ -72,6 +80,7 @@ Expected key values:
 
 - `source=scraped-dev`
 - `sourceLabel=개발용 외부 수집 데이터`
+- `sourceDisclosure=null`
 - `matchupText=한화 vs 삼성`
 - `scoreText=1:6 패`
 - `shortMemo=삼성이 6:1로 승리했던 경기`
@@ -152,6 +161,92 @@ curl http://localhost:8081/api/v1/dev/kbo/update-scraped-dev/status
 ```
 
 JSON import is fallback only. The normal local update path is the internal collector.
+
+## App Review-Safe KBO Source Wording
+
+Local/dev mode defaults to:
+
+```bash
+KBO_SOURCE_LABEL_MODE=dev
+```
+
+This returns `sourceLabel=개발용 외부 수집 데이터`.
+
+For App Review or production-safe testing, run with:
+
+```bash
+KBO_SOURCE_LABEL_MODE=review ./gradlew bootRun
+```
+
+Then `source=scraped-dev` remains visible, but `sourceLabel` becomes `참고용 경기 정보` and `sourceDisclosure` explains that the data is only a record-entry aid. The production Spring profile defaults to review-safe wording.
+
+## AI Diary Draft
+
+The Groq key is server-only. The iOS app calls the Spring endpoint and must never include `GROQ_API_KEY`.
+
+```bash
+export AI_DIARY_ENABLED=true
+export GROQ_API_KEY=replace-with-rotated-server-only-key
+export GROQ_MODEL=llama-3.1-8b-instant
+```
+
+Generate an editable AI draft:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/ai/diary-draft \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -d '{
+    "gameDate": "2026-04-16",
+    "favoriteTeamName": "한화 이글스",
+    "opponentTeamName": "삼성 라이온즈",
+    "stadiumName": "대전 한화생명 볼파크",
+    "result": "loss",
+    "scoreText": "1:6 패",
+    "moodTags": ["아쉬움", "열광적"],
+    "highlightTags": ["응원 분위기"],
+    "companionType": "friends",
+    "tone": "warm",
+    "extraNoteSanitized": "응원 분위기가 기억에 남았다.",
+    "locale": "ko-KR"
+  }'
+```
+
+Payload minimization: send game fields and short sanitized notes only. Do not send original photos, precise location, companion real names, or excessive raw notes.
+
+Deterministic fallback:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/diary/template-draft \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gameDate": "2026-04-16",
+    "favoriteTeamName": "한화 이글스",
+    "opponentTeamName": "삼성 라이온즈",
+    "stadiumName": "대전 한화생명 볼파크",
+    "result": "loss",
+    "scoreText": "1:6 패",
+    "moodTags": ["아쉬움"],
+    "highlightTags": ["응원 분위기"],
+    "tone": "warm",
+    "extraNote": "응원 분위기가 기억에 남았다."
+  }'
+```
+
+## Ticket OCR Text Parse
+
+The server does not receive ticket images. Run OCR on-device in iOS, then send recognized text only:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/ticket/parse-ocr-text \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ocrText": "2026.04.16\n한화 이글스 vs 삼성 라이온즈\n대전 한화생명 볼파크\n1루 204블록 12열 8번",
+    "locale": "ko-KR"
+  }'
+```
+
+The parser returns candidates and warnings only. The app must show the result for user confirmation before saving.
 
 ## Device-Owned APIs
 

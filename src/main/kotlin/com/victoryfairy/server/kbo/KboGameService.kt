@@ -15,6 +15,7 @@ class KboGameService(
     private val repository: KboGameRepository,
     private val suggestionService: KboAttendanceSuggestionService,
     private val objectMapper: ObjectMapper,
+    private val sourceDisplayPolicy: KboSourceDisplayPolicy,
 ) {
     fun listGames(date: LocalDate, teamID: String?): KboGamesData {
         if (teamID != null && TeamSeed.find(teamID) == null) throw ApiException("VALIDATION_ERROR", "존재하지 않는 팀입니다.")
@@ -25,7 +26,15 @@ class KboGameService(
         }
         val items = games.map { toResponse(it, teamID) }
         val source = pickSource(items)
-        return KboGamesData(date.toString(), teamID, source, sourceLabel(source), items, if (items.isEmpty()) "해당 날짜의 경기 정보를 찾지 못했습니다." else null)
+        return KboGamesData(
+            date.toString(),
+            teamID,
+            source,
+            sourceDisplayPolicy.label(source),
+            sourceDisplayPolicy.disclosure(source),
+            items,
+            if (items.isEmpty()) "해당 날짜의 경기 정보를 찾지 못했습니다." else null,
+        )
     }
 
     fun standings(season: Int): KboStandingsData {
@@ -36,6 +45,8 @@ class KboGameService(
         if (games.isEmpty()) {
             return KboStandingsData(
                 season = season,
+                sourceLabel = sourceDisplayPolicy.label(SCRAPED_DEV_SOURCE),
+                sourceDisclosure = sourceDisplayPolicy.disclosure(SCRAPED_DEV_SOURCE),
                 updatedAt = repository.findTopBySeasonOrderByUpdatedAtDesc(season)?.updatedAt?.formatKboStandingsUpdatedAt(),
                 items = emptyList(),
                 message = "수집된 경기 결과가 아직 없습니다.",
@@ -79,6 +90,8 @@ class KboGameService(
 
         return KboStandingsData(
             season = season,
+            sourceLabel = sourceDisplayPolicy.label(SCRAPED_DEV_SOURCE),
+            sourceDisclosure = sourceDisplayPolicy.disclosure(SCRAPED_DEV_SOURCE),
             updatedAt = latestFinalUpdatedAt?.formatKboStandingsUpdatedAt(),
             items = ranked,
             message = null,
@@ -157,7 +170,8 @@ class KboGameService(
             game.resultSummary,
             tags,
             game.source,
-            game.sourceLabel,
+            sourceDisplayPolicy.label(game.source),
+            sourceDisplayPolicy.disclosure(game.source),
             links,
             favoriteTeamID?.let { suggestionService.suggestion(game, it) },
         )
@@ -224,14 +238,6 @@ private class MutableStanding(
             recentResults = results.takeLast(5).asReversed(),
         )
     }
-}
-
-fun sourceLabel(source: String): String = when (source) {
-    SCRAPED_DEV_SOURCE -> SCRAPED_DEV_SOURCE_LABEL
-    "admin-import", "admin-entry" -> "관리자 입력 데이터"
-    "provider" -> "합법 데이터 제공사 데이터"
-    "official" -> "공식 허가 데이터"
-    else -> "데이터 없음"
 }
 
 fun pickSource(items: List<KboGameResponseItem>): String = when {

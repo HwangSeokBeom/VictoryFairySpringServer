@@ -1,0 +1,3 @@
+victory-fairy:
+  kbo:
+    source-label-mode: ${KBO_SOURCE_LABEL_MODE:review}

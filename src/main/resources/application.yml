@@ -25,6 +25,7 @@ spring:
 
 victory-fairy:
   kbo:
+    source-label-mode: ${KBO_SOURCE_LABEL_MODE:dev}
     scraped-dev:
       enabled: ${KBO_SCRAPED_DEV_ENABLED:true}
       input-json: ${KBO_SCRAPED_DEV_INPUT_JSON:/Users/hwangseokbeom/Documents/GitHub/VictoryFairyCoreServer/input/kbo-scraper-2026.json}
@@ -39,3 +40,5 @@ victory-fairy:
     diary-enabled: ${AI_DIARY_ENABLED:false}
     groq-api-key: ${GROQ_API_KEY:}
     groq-model: ${GROQ_MODEL:llama-3.1-8b-instant}
+    daily-limit: ${AI_DIARY_DAILY_LIMIT:10}
+    timeout-seconds: ${AI_DIARY_TIMEOUT_SECONDS:12}

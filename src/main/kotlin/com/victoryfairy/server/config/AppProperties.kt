@@ -15,6 +15,7 @@ data class AppProperties(
 ) {
     data class KboProperties(
         val scrapedDev: ScrapedDevProperties = ScrapedDevProperties(),
+        val sourceLabelMode: String = "dev",
     )
 
     data class ScrapedDevProperties(
@@ -33,5 +34,7 @@ data class AppProperties(
         val diaryEnabled: Boolean = false,
         val groqApiKey: String = "",
         val groqModel: String = "llama-3.1-8b-instant",
+        val dailyLimit: Int = 10,
+        val timeoutSeconds: Long = 12,
     )
 }

@@ -2,6 +2,7 @@ package com.victoryfairy.server
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.victoryfairy.server.attendance.AttendanceLogRequest
+import kotlin.test.assertTrue
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -13,6 +14,7 @@ import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.get
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -26,6 +28,36 @@ import org.springframework.test.web.servlet.get
 class ApiIntegrationTest {
     @Autowired lateinit var mockMvc: MockMvc
     @Autowired lateinit var objectMapper: ObjectMapper
+    @Autowired lateinit var handlerMapping: RequestMappingHandlerMapping
+
+    @Test
+    fun `expected mobile API routes are registered`() {
+        val mappings = handlerMapping.handlerMethods.keys.flatMap { info ->
+            val methods = info.methodsCondition.methods.map { it.name }.ifEmpty { listOf("ANY") }
+            val patterns = info.pathPatternsCondition?.patternValues ?: info.patternsCondition?.patterns ?: emptySet()
+            patterns.flatMap { pattern -> methods.map { method -> "$method $pattern" } }
+        }.toSet()
+
+        listOf(
+            "GET /health",
+            "GET /api/v1/teams",
+            "GET /api/v1/me/preferences",
+            "PUT /api/v1/me/preferences",
+            "GET /api/v1/feed",
+            "GET /api/v1/calendar",
+            "GET /api/v1/statistics/summary",
+            "GET /api/v1/statistics/stadiums",
+            "GET /api/v1/statistics/opponents",
+            "GET /api/v1/kbo/standings",
+            "GET /api/v1/kbo/games",
+            "POST /api/v1/attendance-logs",
+            "POST /api/v1/ai/diary-draft",
+            "POST /api/v1/ticket/parse-ocr-text",
+            "GET /api/v1/seasons",
+        ).forEach { expected ->
+            assertTrue(expected in mappings, "Missing registered request mapping: $expected")
+        }
+    }
 
     @Test
     fun `health returns envelope`() {
@@ -41,6 +73,77 @@ class ApiIntegrationTest {
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.success") { value(true) } }
             .andExpect { jsonPath("$.data", hasSize<Any>(10)) }
+    }
+
+    @Test
+    fun `device owned mobile read endpoints return ok with device header`() {
+        val deviceID = "local-test-device"
+
+        mockMvc.get("/api/v1/me/preferences") {
+            header("X-Device-ID", deviceID)
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+
+        mockMvc.get("/api/v1/feed") {
+            header("X-Device-ID", deviceID)
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+
+        mockMvc.get("/api/v1/calendar") {
+            header("X-Device-ID", deviceID)
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+
+        mockMvc.get("/api/v1/statistics/summary") {
+            header("X-Device-ID", deviceID)
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+    }
+
+    @Test
+    fun `KBO standings route returns ok for configured season`() {
+        mockMvc.get("/api/v1/kbo/standings") {
+            param("season", "2026")
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+    }
+
+    @Test
+    fun `seasons returns configured and available seasons`() {
+        val deviceID = "season-test-device"
+        mockMvc.post("/api/v1/attendance-logs") {
+            header("X-Device-ID", deviceID)
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(
+                AttendanceLogRequest(
+                    date = "2025-04-01",
+                    season = 2025,
+                    favoriteTeamID = "hanwha-eagles",
+                    opponentTeamID = "lg-twins",
+                    stadiumName = "대전 한화생명 볼파크",
+                    result = "win",
+                    ourScore = 7,
+                    opponentScore = 4,
+                ),
+            )
+        }
+            .andExpect { status { isOk() } }
+
+        mockMvc.get("/api/v1/seasons") {
+            header("X-Device-ID", deviceID)
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.currentSeason") { value(2026) } }
+            .andExpect { jsonPath("$.data.items[0].season") { value(2026) } }
+            .andExpect { jsonPath("$.data.items[0].label") { value("2026 시즌") } }
+            .andExpect { jsonPath("$.data.items[1].season") { value(2025) } }
+            .andExpect { jsonPath("$.data.items[1].hasRecords") { value(true) } }
     }
 
     @Test
@@ -87,7 +190,7 @@ class ApiIntegrationTest {
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.success") { value(false) } }
             .andExpect { jsonPath("$.error.code") { value("AI_FEATURE_DISABLED") } }
-            .andExpect { jsonPath("$.error.message") { value("AI 후기 초안 기능은 아직 비활성화되어 있습니다.") } }
+            .andExpect { jsonPath("$.error.message") { value("AI 후기 초안 기능은 비활성화되어 있습니다.") } }
     }
 
     @Test

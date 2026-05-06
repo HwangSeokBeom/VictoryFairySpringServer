@@ -2,12 +2,27 @@
 
 This server includes a local-only KBO `scraped-dev` pipeline for development and testing.
 
-Required labels:
+Internal stored source values:
 
 - `source`: `scraped-dev`
 - `sourceLabel`: `개발용 외부 수집 데이터`
 
-This data must not be presented as official KBO data, provider data, licensed data, or App Store/production-ready data.
+This data must not be presented as provider-backed, licensed, complete, or production-grade data.
+
+API display labels are environment-based:
+
+- `KBO_SOURCE_LABEL_MODE=dev`: `sourceLabel=개발용 외부 수집 데이터`
+- `KBO_SOURCE_LABEL_MODE=review` or `production`: `sourceLabel=참고용 경기 정보`
+
+Review/production-safe API responses also include:
+
+```json
+{
+  "sourceDisclosure": "이 정보는 기록 입력을 돕기 위한 참고용 정보이며, 공식 기록은 KBO 공식 사이트에서 확인해 주세요."
+}
+```
+
+The production Spring profile defaults to review-safe wording through `application-production.yml`. Do not hide `source=scraped-dev`; it is still the internal source marker.
 
 ## Allowed Use
 
@@ -19,7 +34,7 @@ This data must not be presented as official KBO data, provider data, licensed da
 
 - Production deployment using scraped KBO data
 - App Store release claims based on scraped KBO data
-- Calling scraped data official, provider-backed, licensed, or complete
+- Calling scraped data provider-backed, licensed, or complete
 - Committing API keys, cookies, credentials, or generated full-season data snapshots
 
 ## Internal Collector Behavior
@@ -33,19 +48,30 @@ The collector:
 - uses Playwright to load the KBO schedule page in local development,
 - parses schedule/result rows into VictoryFairy team IDs and stadium names,
 - stores rows directly in the local `kbo_games` table,
-- always writes `source=scraped-dev` and `sourceLabel=개발용 외부 수집 데이터`,
+- always writes `source=scraped-dev` and the internal stored label `sourceLabel=개발용 외부 수집 데이터`,
 - runs sequential monthly requests with a small delay and must not be used aggressively.
 
 ## Standings Behavior
 
 `GET /api/v1/kbo/standings?season=2026` is also a scraped-dev endpoint. It computes standings from rows already stored in the local Spring DB and must not call KBO, Naver, Daum, or any other external service while serving the request.
 
-The response always uses:
+In local/dev display mode, the response uses:
 
 ```json
 {
   "source": "scraped-dev",
-  "sourceLabel": "개발용 외부 수집 데이터"
+  "sourceLabel": "개발용 외부 수집 데이터",
+  "sourceDisclosure": null
+}
+```
+
+In review/production-safe display mode, the same stored rows use:
+
+```json
+{
+  "source": "scraped-dev",
+  "sourceLabel": "참고용 경기 정보",
+  "sourceDisclosure": "이 정보는 기록 입력을 돕기 위한 참고용 정보이며, 공식 기록은 KBO 공식 사이트에서 확인해 주세요."
 }
 ```
 
@@ -62,6 +88,7 @@ Scheduled, canceled, postponed, and incomplete-score rows are excluded. Draws ar
   "season": 2026,
   "source": "scraped-dev",
   "sourceLabel": "개발용 외부 수집 데이터",
+  "sourceDisclosure": null,
   "updatedAt": null,
   "items": [],
   "message": "수집된 경기 결과가 아직 없습니다."
@@ -70,7 +97,7 @@ Scheduled, canceled, postponed, and incomplete-score rows are excluded. Draws ar
 
 For scraped-dev standings, `updatedAt` is based on the latest stored `KBOGame` update timestamp, not an official publication timestamp. With final rows, it is the latest update timestamp among final rows included in the standings. Without final rows, it falls back to the latest stored update timestamp for any row in the requested season; if the season has no stored rows, it is `null`.
 
-Do not describe this response as official current KBO standings. It is local development/test data built from scraped-dev game rows.
+Do not describe this response as current licensed standings. It is local development/test data built from scraped-dev game rows.
 
 The default scheduler remains disabled:
 

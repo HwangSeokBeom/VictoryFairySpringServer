@@ -7,6 +7,8 @@ data class KboGamesData(
     val teamID: String?,
     val source: String,
     val sourceLabel: String,
+    @field:JsonInclude(JsonInclude.Include.ALWAYS)
+    val sourceDisclosure: String?,
     val items: List<KboGameResponseItem>,
     val message: String?,
 )
@@ -28,6 +30,8 @@ data class KboGameResponseItem(
     val highlightTags: List<String>,
     val source: String,
     val sourceLabel: String,
+    @field:JsonInclude(JsonInclude.Include.ALWAYS)
+    val sourceDisclosure: String?,
     val officialLinks: Map<String, String>,
     val attendanceSuggestion: AttendanceSuggestion?,
 )
@@ -50,6 +54,8 @@ data class KboStandingsData(
     val season: Int,
     val source: String = SCRAPED_DEV_SOURCE,
     val sourceLabel: String = SCRAPED_DEV_SOURCE_LABEL,
+    @field:JsonInclude(JsonInclude.Include.ALWAYS)
+    val sourceDisclosure: String? = null,
     @field:JsonInclude(JsonInclude.Include.ALWAYS)
     val updatedAt: String? = null,
     val items: List<KboStandingsItem> = emptyList(),
