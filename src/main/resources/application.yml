@@ -13,6 +13,10 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  servlet:
+    multipart:
+      max-file-size: ${PROFILE_IMAGE_MAX_BYTES:2097152}
+      max-request-size: ${PROFILE_IMAGE_MAX_BYTES:2097152}
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
@@ -38,13 +42,29 @@ victory-fairy:
       request-delay-ms: ${KBO_SCRAPED_DEV_REQUEST_DELAY_MS:350}
   ai:
     diary-enabled: ${AI_DIARY_ENABLED:false}
+    match-outlook-enabled: ${MATCH_OUTLOOK_AI_ENABLED:false}
     groq-api-key: ${GROQ_API_KEY:}
     groq-model: ${GROQ_MODEL:llama-3.1-8b-instant}
     daily-limit: ${AI_DIARY_DAILY_LIMIT:10}
     timeout-seconds: ${AI_DIARY_TIMEOUT_SECONDS:12}
+  profile-image:
+    upload-enabled: ${PROFILE_IMAGE_UPLOAD_ENABLED:true}
+    max-bytes: ${PROFILE_IMAGE_MAX_BYTES:2097152}
+    max-side: ${PROFILE_IMAGE_MAX_SIDE:512}
+    upload-dir: ${PROFILE_IMAGE_UPLOAD_DIR:data/uploads/profile}
   community:
-    enabled: ${COMMUNITY_ENABLED:false}
+    enabled: ${COMMUNITY_ENABLED:true}
+    posts-require-profile: ${COMMUNITY_POSTS_REQUIRE_PROFILE:true}
+    block-enabled: ${COMMUNITY_BLOCK_ENABLED:true}
     policy-url: ${COMMUNITY_POLICY_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html}
+  legal:
+    app-homepage-url: ${APP_HOMEPAGE_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/}
+    terms-url: ${TERMS_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/terms.html}
+    privacy-policy-url: ${PRIVACY_POLICY_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/privacy.html}
+    support-url: ${SUPPORT_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/support.html}
+    account-deletion-url: ${ACCOUNT_DELETION_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/delete-account.html}
+    disclaimer-url: ${DISCLAIMER_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/disclaimer.html}
+    community-policy-url: ${COMMUNITY_POLICY_URL:https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html}
   news:
     provider: ${NEWS_PROVIDER:local}
     naver-client-id: ${NAVER_CLIENT_ID:}

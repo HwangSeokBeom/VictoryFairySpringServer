@@ -12,7 +12,9 @@ class AppPropertiesConfig
 data class AppProperties(
     val kbo: KboProperties = KboProperties(),
     val ai: AiProperties = AiProperties(),
+    val profileImage: ProfileImageProperties = ProfileImageProperties(),
     val community: CommunityProperties = CommunityProperties(),
+    val legal: LegalProperties = LegalProperties(),
     val news: NewsProperties = NewsProperties(),
 ) {
     data class KboProperties(
@@ -34,15 +36,35 @@ data class AppProperties(
 
     data class AiProperties(
         val diaryEnabled: Boolean = false,
+        val matchOutlookEnabled: Boolean = false,
         val groqApiKey: String = "",
         val groqModel: String = "llama-3.1-8b-instant",
         val dailyLimit: Int = 10,
         val timeoutSeconds: Long = 12,
     )
 
+    data class ProfileImageProperties(
+        val uploadEnabled: Boolean = true,
+        val maxBytes: Long = 2_097_152,
+        val maxSide: Int = 512,
+        val uploadDir: String = "data/uploads/profile",
+    )
+
     data class CommunityProperties(
-        val enabled: Boolean = false,
+        val enabled: Boolean = true,
+        val postsRequireProfile: Boolean = true,
+        val blockEnabled: Boolean = true,
         val policyUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html",
+    )
+
+    data class LegalProperties(
+        val appHomepageUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/",
+        val termsUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/terms.html",
+        val privacyPolicyUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/privacy.html",
+        val supportUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/support.html",
+        val accountDeletionUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/delete-account.html",
+        val disclaimerUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/disclaimer.html",
+        val communityPolicyUrl: String = "https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html",
     )
 
     data class NewsProperties(

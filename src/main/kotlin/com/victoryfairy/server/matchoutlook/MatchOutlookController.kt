@@ -14,5 +14,5 @@ class MatchOutlookController(
 ) {
     @PostMapping("/api/v1/match-outlook")
     fun outlook(request: HttpServletRequest, @RequestBody body: MatchOutlookRequest): ApiResponse<MatchOutlookData> =
-        ApiResponse.ok(service.create(deviceIdentityFilter.requireDeviceID(request), body))
+        ApiResponse.ok(service.create(deviceIdentityFilter.optionalDeviceID(request), body))
 }

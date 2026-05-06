@@ -29,6 +29,11 @@ Failure:
 - `GET /api/v1/teams`
 - `GET /api/v1/me/preferences`
 - `PUT /api/v1/me/preferences`
+- `GET /api/v1/me/profile`
+- `POST /api/v1/me/profile`
+- `PUT /api/v1/me/profile`
+- `POST /api/v1/me/profile/image`
+- `DELETE /api/v1/me/profile/image`
 - `GET /api/v1/kbo/games?date=YYYY-MM-DD&teamID=<teamID>`
 - `GET /api/v1/kbo/standings?season=2026`
 - `POST /api/v1/dev/kbo/seed-sample-game`
@@ -51,6 +56,11 @@ Failure:
 - `POST /api/v1/match-outlook`
 - `GET /api/v1/community/posts`
 - `POST /api/v1/community/posts`
+- `POST /api/v1/community/posts/{id}/report`
+- `POST /api/v1/community/users/{authorId}/block`
+- `DELETE /api/v1/community/users/{authorId}/block`
+- `GET /api/v1/community/blocked-users`
+- `GET /api/v1/legal-links`
 - `POST /api/v1/ai/diary-draft`
 - `POST /api/v1/diary/template-draft`
 - `POST /api/v1/ticket/parse-ocr-text`
@@ -61,15 +71,146 @@ Device-owned endpoints require:
 X-Device-ID: <uuid-or-stable-device-id>
 ```
 
-Read-only seed/reference endpoints such as `/health`, `/api/v1/teams`, KBO games, news scaffold, community read scaffold, and dev KBO update/status do not require device identity.
+Read-only seed/reference endpoints such as `/health`, `/api/v1/teams`, KBO games, news scaffold, community reads, legal links, and dev KBO update/status do not require device identity.
 
-Personalized endpoints that read attendance history, including win-rate analysis and match outlook, require `X-Device-ID`.
+Device-owned write/read endpoints such as preferences, profile, attendance logs, feed, calendar, statistics, win-rate analysis, community posting, and community reporting require `X-Device-ID`. Match outlook accepts `X-Device-ID` when present and returns stronger personal 관전 포인트 from attendance history; without it, the response stays limited and non-personal.
 
 Dev KBO collector/update endpoints are local/test only. They are blocked for production Spring profiles and `NODE_ENV=production`. If `ADMIN_IMPORT_TOKEN` is configured, these endpoints require:
 
 ```http
 X-Admin-Token: <local-secret>
 ```
+
+## Lightweight Profile
+
+Profiles are device-based and do not expose `deviceID` in API responses. Profile images are optional; `profileEmoji` remains available as the lightweight fallback.
+
+```json
+{
+  "success": true,
+  "data": {
+    "exists": true,
+    "nickname": "석범",
+    "favoriteTeamID": "samsung-lions",
+    "favoriteTeamName": "삼성 라이온즈",
+    "profileEmoji": "⚾",
+    "profileImageURL": "/uploads/profile/profile_00000000-0000-4000-8000-000000000001.jpg",
+    "createdAt": "2026-05-07T00:00:00Z",
+    "updatedAt": "2026-05-07T00:00:00Z"
+  }
+}
+```
+
+Upload a profile image:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/me/profile/image \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -F "image=@profile.jpg;type=image/jpeg"
+```
+
+The server accepts JPEG and PNG only. HEIC is rejected until the Spring image stack supports safe decoding. Uploads are limited by `PROFILE_IMAGE_MAX_BYTES`, decoded server-side, resized to `PROFILE_IMAGE_MAX_SIDE`, re-encoded to strip metadata, and stored under `PROFILE_IMAGE_UPLOAD_DIR`. Local storage is for development; production should move profile images to S3-compatible object storage and serve them through a CDN.
+
+If the requester has no profile, upload/delete returns:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "PROFILE_REQUIRED",
+    "message": "프로필을 먼저 만들어 주세요."
+  }
+}
+```
+
+Profile updates through `POST` or `PUT /api/v1/me/profile` keep the existing `profileImageURL`. Delete the image only through:
+
+```bash
+curl -X DELETE http://localhost:8081/api/v1/me/profile/image \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+Image errors:
+
+- `PROFILE_IMAGE_TOO_LARGE`: profile image exceeds the configured byte limit.
+- `PROFILE_IMAGE_UNSUPPORTED_TYPE`: content type, extension, or decoded bytes are not a supported image.
+
+## Community Posts And Safety
+
+Community responses include the full policy URL:
+
+```text
+https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html
+```
+
+Post responses include author display fields but never expose raw `deviceID`:
+
+```json
+{
+  "id": "2e928b2c-e6b9-4826-8aa2-611d917096a2",
+  "teamID": "samsung-lions",
+  "teamName": "삼성 라이온즈",
+  "authorID": "author_5b6c2b1e2d5d40f49f3be228d04b1f43",
+  "authorDisplayName": "석범",
+  "authorProfileEmoji": "⚾",
+  "authorProfileImageURL": "/uploads/profile/profile_00000000-0000-4000-8000-000000000001.jpg",
+  "content": "오늘도 삼성 응원합니다!",
+  "createdAt": "2026-05-07T00:00:00Z",
+  "likeCount": 0,
+  "reportCount": 0,
+  "status": "visible"
+}
+```
+
+Report and block are separate safety controls. Report alerts moderation; block immediately hides that author's 응원톡 only for the requesting device.
+
+Report a post with an optional reason:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/community/posts/{postID}/report \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -d '{"reason":"spam"}'
+```
+
+Allowed report reasons are `abuse`, `hate`, `privacy`, `gambling`, `copyright`, `impersonation`, `spam`, and `other`. Missing reason defaults to `other`. The success message is `신고가 접수됐어요.`
+
+Block an author:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/community/users/{authorID}/block \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "blockedAuthorID": "author_5b6c2b1e2d5d40f49f3be228d04b1f43",
+    "message": "해당 사용자의 응원톡을 숨겼어요."
+  }
+}
+```
+
+Unblock:
+
+```bash
+curl -X DELETE http://localhost:8081/api/v1/community/users/{authorID}/block \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+Blocked users:
+
+```bash
+curl http://localhost:8081/api/v1/community/blocked-users \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+Block errors:
+
+- `AUTHOR_NOT_FOUND`: exposed `authorID` does not match a profile.
+- `CANNOT_BLOCK_SELF`: requester tried to block their own author ID.
+- `PROFILE_REQUIRED`: requester must create a profile first when needed for self-block checks.
 
 ## KBO Games Shape
 
@@ -314,9 +455,73 @@ NEWS_CACHE_TTL_SECONDS=1800
 
 If `NEWS_PROVIDER` is not `naver`, the server uses the local/dev sample provider. If Naver credentials are missing in local/dev, the server returns local/dev sample news. If Naver credentials are missing in production, the server returns `success=true`, `items=[]`, and `message="뉴스 제공 설정이 준비되지 않았습니다."`. If a Naver secret was exposed anywhere, rotate it before production use.
 
+## Lightweight Profile
+
+Profile signup is device-based and intentionally minimal. It stores only `X-Device-ID`, nickname, favorite team, optional profile emoji, and timestamps. It does not implement email/password login and does not expose the device ID in profile responses.
+
+```bash
+curl -H "X-Device-ID: test-device" http://localhost:8081/api/v1/me/profile
+
+curl -X POST http://localhost:8081/api/v1/me/profile \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: test-device" \
+  -d '{"nickname":"석범","favoriteTeamID":"samsung-lions","profileEmoji":"⚾"}'
+```
+
+Missing profile:
+
+```json
+{
+  "success": true,
+  "data": {
+    "exists": false
+  }
+}
+```
+
+Existing profile:
+
+```json
+{
+  "success": true,
+  "data": {
+    "exists": true,
+    "nickname": "석범",
+    "favoriteTeamID": "samsung-lions",
+    "favoriteTeamName": "삼성 라이온즈",
+    "profileEmoji": "⚾",
+    "createdAt": "2026-05-07T00:00:00Z",
+    "updatedAt": "2026-05-07T00:00:00Z"
+  }
+}
+```
+
+Nickname validation allows 2-12 Korean/English/number/space characters and rejects a small prohibited-word list. `favoriteTeamID` must be one of the known KBO team IDs.
+
+## Legal Links
+
+```bash
+curl http://localhost:8081/api/v1/legal-links
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "home": "https://hwangseokbeom.github.io/VictoryFairy-legal/",
+    "terms": "https://hwangseokbeom.github.io/VictoryFairy-legal/terms.html",
+    "privacy": "https://hwangseokbeom.github.io/VictoryFairy-legal/privacy.html",
+    "support": "https://hwangseokbeom.github.io/VictoryFairy-legal/support.html",
+    "accountDeletion": "https://hwangseokbeom.github.io/VictoryFairy-legal/delete-account.html",
+    "disclaimer": "https://hwangseokbeom.github.io/VictoryFairy-legal/disclaimer.html",
+    "communityPolicy": "https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html"
+  }
+}
+```
+
 ## Match Outlook
 
-`POST /api/v1/match-outlook` returns safe `관전 포인트`/`경기 전망` style text. It is informational and entertainment-only, derived from the requester's attendance logs and optional local reference context.
+`POST /api/v1/match-outlook` returns safe AI-ready `관전 포인트`/`경기 전망` style text. It is informational and entertainment-only, derived from the requester's attendance logs, Naver news references when configured, and optional local KBO reference context. If `MATCH_OUTLOOK_AI_ENABLED=true` and `GROQ_API_KEY` is configured, the Spring server may call Groq server-side; clients must never call Groq directly.
 
 ```bash
 curl -X POST http://localhost:8081/api/v1/match-outlook \
@@ -334,23 +539,43 @@ curl -X POST http://localhost:8081/api/v1/match-outlook \
 {
   "success": true,
   "data": {
-    "title": "오늘의 관전 포인트",
-    "summary": "내 직관 기록과 참고용 경기 정보를 바탕으로 본 응원 포인트예요.",
+    "title": "삼성 vs KIA AI 관전 포인트",
+    "summary": "최근 야구 소식과 내 직관 기록을 바탕으로 오늘 경기를 더 재미있게 볼 포인트를 정리했어요.",
     "points": [
-      "최근 직관 기록 기준으로는 KIA전 표본이 아직 적어요.",
-      "잠실야구장 기록을 더 쌓으면 구장별 흐름을 더 잘 볼 수 있어요."
+      {
+        "title": "최근 분위기",
+        "body": "최근 관련 야구 소식을 바탕으로 경기 전 분위기를 살펴볼 수 있어요."
+      },
+      {
+        "title": "내 직관 기록",
+        "body": "아직 직관 기록이 적어 개인화된 관전 포인트가 제한적이에요."
+      },
+      {
+        "title": "응원 포인트",
+        "body": "응원 포인트는 기록이 쌓일수록 상대팀, 구장, 최근 흐름 기준으로 더 달라져요."
+      }
+    ],
+    "newsReferences": [
+      {
+        "title": "KBO 야구 뉴스",
+        "sourceName": "네이버 뉴스",
+        "url": "https://example.com/news"
+      }
     ],
     "confidenceLabel": "재미용",
-    "disclaimer": "공식 예측이나 베팅 정보가 아닙니다."
+    "generatedBy": "ai",
+    "disclaimer": "공식 예측이나 승부 정보가 아닙니다."
   }
 }
 ```
 
-Do not expose guarantees, outcome-hit claims, or 금전성 승부 정보. User-facing Korean should prefer `경기 전망`, `관전 포인트`, and `응원 포인트`.
+Fallbacks still return the same response shape with `generatedBy="template"` and `points` as objects. If no news is available, `newsReferences` is empty and the summary is `내 직관 기록으로 오늘 경기를 더 재미있게 볼 포인트를 정리했어요.`
 
-## Community Scaffold
+Do not expose win probability, odds, spreads, moneyline, betting guidance, guaranteed winners, or 적중률. User-facing Korean should prefer `경기 전망`, `관전 포인트`, and `응원 포인트`.
 
-`GET /api/v1/community/posts` is public and returns an empty state until community moderation and operations are ready.
+## Community / 응원톡
+
+`GET /api/v1/community/posts` is public. Local/dev defaults to enabled; production defaults to disabled unless `COMMUNITY_ENABLED=true` is explicitly set. Posting requires a lightweight profile by default.
 
 ```bash
 curl http://localhost:8081/api/v1/community/posts
@@ -360,32 +585,63 @@ curl http://localhost:8081/api/v1/community/posts
 {
   "success": true,
   "data": {
+    "enabled": true,
     "items": [],
-    "message": "응원톡은 준비 중입니다.",
+    "message": "아직 응원톡이 없어요. 첫 응원을 남겨보세요.",
     "policyURL": "https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html"
   }
 }
 ```
 
-`POST /api/v1/community/posts` exists but is disabled by default:
+Create a text-only 응원톡:
 
 ```bash
 curl -X POST http://localhost:8081/api/v1/community/posts \
   -H "Content-Type: application/json" \
-  -d '{"content":"삼성 화이팅"}'
+  -H "X-Device-ID: test-device" \
+  -d '{"teamID":"samsung-lions","content":"오늘도 삼성 응원합니다!"}'
 ```
 
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "COMMUNITY_DISABLED",
-    "message": "응원톡 작성은 아직 준비 중입니다."
+  "success": true,
+  "data": {
+    "item": {
+      "id": "9e2ce8e4-8c4b-49e8-b2c5-06145f8fb43b",
+      "teamID": "samsung-lions",
+      "teamName": "삼성 라이온즈",
+      "authorDisplayName": "석범",
+      "content": "오늘도 삼성 응원합니다!",
+      "createdAt": "2026-05-07T00:00:00Z",
+      "likeCount": 0,
+      "reportCount": 0,
+      "status": "visible"
+    },
+    "policyURL": "https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html"
   }
 }
 ```
 
-Set `COMMUNITY_ENABLED=true` only after moderation operations are ready. The scaffold enforces text-only posts, 300-character maximum, a basic prohibited-content guard, pending-review status, and report availability.
+If profile is required and missing, `POST /api/v1/community/posts` returns `PROFILE_REQUIRED` with `응원톡을 작성하려면 프로필을 먼저 만들어 주세요.`
+
+Moderation rejects obvious profanity/abuse, hate expressions, practical personal-information patterns, gambling/betting promotion, and suspicious ticket sale/transfer wording with `COMMUNITY_CONTENT_REJECTED`. MVP community does not support images, video, nested comments, or DMs.
+
+Reports require `X-Device-ID`:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/community/posts/{id}/report \
+  -H "X-Device-ID: reporter-device"
+```
+
+Duplicate reports from the same device are ignored. At 3 reports the post status becomes `hidden`.
+
+Server environment:
+
+```bash
+COMMUNITY_ENABLED=true
+COMMUNITY_POSTS_REQUIRE_PROFILE=true
+COMMUNITY_POLICY_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html
+```
 
 ## Share Card Support
 

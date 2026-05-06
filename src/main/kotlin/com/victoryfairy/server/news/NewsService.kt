@@ -59,6 +59,42 @@ class NewsService(
         }
     }
 
+    fun searchByQuery(query: String, limit: Int, teamIDs: List<String> = emptyList()): NewsData {
+        val normalizedLimit = limit.coerceIn(1, MAX_LIMIT)
+        val normalizedQuery = query.trim()
+        val newsProperties = properties.news
+        val provider = newsProperties.provider.trim().lowercase()
+
+        if (provider != "naver" || normalizedQuery.isBlank()) {
+            return emptyNews(null)
+        }
+
+        if (newsProperties.naverClientId.isBlank() || newsProperties.naverClientSecret.isBlank()) {
+            return emptyNews("뉴스 제공 설정이 준비되지 않았습니다.")
+        }
+
+        return runCatching {
+            val rawItems = naverNewsClient.search(
+                baseUrl = newsProperties.naverNewsBaseUrl,
+                clientId = newsProperties.naverClientId,
+                clientSecret = newsProperties.naverClientSecret,
+                query = normalizedQuery,
+                limit = normalizedLimit,
+                timeout = REQUEST_TIMEOUT,
+            )
+            NewsData(
+                items = NaverNewsNormalizer.normalize(rawItems, null)
+                    .map { it.copy(teamIDs = teamIDs) }
+                    .take(normalizedLimit),
+                message = null,
+                sourceDisclosure = SOURCE_DISCLOSURE,
+            )
+        }.getOrElse {
+            if (isProduction()) emptyNews("뉴스를 불러오지 못했습니다.")
+            else emptyNews("뉴스 제공자 연결에 실패했습니다.")
+        }
+    }
+
     private fun freshCached(cacheKey: String): NewsData? =
         cache[cacheKey]?.takeIf { Instant.now().isBefore(it.expiresAt) }?.data
 

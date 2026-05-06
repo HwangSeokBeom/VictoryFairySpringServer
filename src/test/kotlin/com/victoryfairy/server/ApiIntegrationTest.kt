@@ -15,6 +15,7 @@ import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.put
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 
 @SpringBootTest
@@ -51,9 +52,19 @@ class ApiIntegrationTest {
             "GET /api/v1/statistics/opponents",
             "GET /api/v1/analysis/win-rate",
             "GET /api/v1/news",
+            "GET /api/v1/me/profile",
+            "POST /api/v1/me/profile",
+            "PUT /api/v1/me/profile",
+            "POST /api/v1/me/profile/image",
+            "DELETE /api/v1/me/profile/image",
             "POST /api/v1/match-outlook",
             "GET /api/v1/community/posts",
             "POST /api/v1/community/posts",
+            "POST /api/v1/community/posts/{id}/report",
+            "POST /api/v1/community/users/{authorId}/block",
+            "DELETE /api/v1/community/users/{authorId}/block",
+            "GET /api/v1/community/blocked-users",
+            "GET /api/v1/legal-links",
             "GET /api/v1/kbo/standings",
             "GET /api/v1/kbo/games",
             "POST /api/v1/attendance-logs",
@@ -79,6 +90,73 @@ class ApiIntegrationTest {
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.success") { value(true) } }
             .andExpect { jsonPath("$.data", hasSize<Any>(10)) }
+    }
+
+    @Test
+    fun `profile signup creates and updates lightweight device profile`() {
+        val deviceID = "profile-test-device"
+
+        mockMvc.get("/api/v1/me/profile") {
+            header("X-Device-ID", deviceID)
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.exists") { value(false) } }
+
+        mockMvc.post("/api/v1/me/profile") {
+            header("X-Device-ID", deviceID)
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"nickname":"석범","favoriteTeamID":"samsung-lions","profileEmoji":"⚾"}"""
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.data.exists") { value(true) } }
+            .andExpect { jsonPath("$.data.nickname") { value("석범") } }
+            .andExpect { jsonPath("$.data.favoriteTeamID") { value("samsung-lions") } }
+            .andExpect { jsonPath("$.data.favoriteTeamName") { value("삼성 라이온즈") } }
+            .andExpect { jsonPath("$.data.deviceID") { doesNotExist() } }
+
+        mockMvc.put("/api/v1/me/profile") {
+            header("X-Device-ID", deviceID)
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"nickname":"라팍응원","favoriteTeamID":"doosan-bears","profileEmoji":"🐻"}"""
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.data.nickname") { value("라팍응원") } }
+            .andExpect { jsonPath("$.data.favoriteTeamID") { value("doosan-bears") } }
+            .andExpect { jsonPath("$.data.favoriteTeamName") { value("두산 베어스") } }
+    }
+
+    @Test
+    fun `profile rejects invalid nickname and unknown team`() {
+        mockMvc.post("/api/v1/me/profile") {
+            header("X-Device-ID", "profile-invalid-nickname-device")
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"nickname":"x!","favoriteTeamID":"samsung-lions"}"""
+        }
+            .andExpect { status { isBadRequest() } }
+            .andExpect { jsonPath("$.error.code") { value("VALIDATION_ERROR") } }
+
+        mockMvc.post("/api/v1/me/profile") {
+            header("X-Device-ID", "profile-invalid-team-device")
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"nickname":"석범","favoriteTeamID":"unknown-team"}"""
+        }
+            .andExpect { status { isBadRequest() } }
+            .andExpect { jsonPath("$.error.code") { value("VALIDATION_ERROR") } }
+    }
+
+    @Test
+    fun `legal links endpoint returns GitHub Pages URLs`() {
+        mockMvc.get("/api/v1/legal-links")
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.home") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/") } }
+            .andExpect { jsonPath("$.data.terms") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/terms.html") } }
+            .andExpect { jsonPath("$.data.privacy") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/privacy.html") } }
+            .andExpect { jsonPath("$.data.support") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/support.html") } }
+            .andExpect { jsonPath("$.data.accountDeletion") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/delete-account.html") } }
+            .andExpect { jsonPath("$.data.disclaimer") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/disclaimer.html") } }
+            .andExpect { jsonPath("$.data.communityPolicy") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html") } }
     }
 
     @Test
@@ -306,14 +384,23 @@ class ApiIntegrationTest {
         }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.success") { value(true) } }
-            .andExpect { jsonPath("$.data.title") { value("오늘의 관전 포인트") } }
-            .andExpect { jsonPath("$.data.summary") { value("내 직관 기록과 참고용 경기 정보를 바탕으로 본 응원 포인트예요.") } }
-            .andExpect { jsonPath("$.data.points[0]") { value("KIA전 직관 기록은 2승 1패 흐름이에요.") } }
+            .andExpect { jsonPath("$.data.title") { value("삼성 vs KIA AI 관전 포인트") } }
+            .andExpect { jsonPath("$.data.summary") { value("내 직관 기록으로 오늘 경기를 더 재미있게 볼 포인트를 정리했어요.") } }
+            .andExpect { jsonPath("$.data.points", hasSize<Any>(3)) }
+            .andExpect { jsonPath("$.data.points[0].title") { value("최근 분위기") } }
+            .andExpect { jsonPath("$.data.points[0].body") { exists() } }
+            .andExpect { jsonPath("$.data.points[1].title") { value("내 직관 기록") } }
+            .andExpect { jsonPath("$.data.points[1].body") { value("KIA전 직관 기록은 3경기, 2승 1패로 남아 있어요.") } }
+            .andExpect { jsonPath("$.data.points[2].title") { value("응원 포인트") } }
+            .andExpect { jsonPath("$.data.points[2].body") { value("잠실야구장에서는 3경기 기록이 있고, 2승 1패였어요.") } }
+            .andExpect { jsonPath("$.data.newsReferences", hasSize<Any>(0)) }
             .andExpect { jsonPath("$.data.confidenceLabel") { value("재미용") } }
-            .andExpect { jsonPath("$.data.disclaimer") { value("공식 예측이나 베팅 정보가 아닙니다.") } }
+            .andExpect { jsonPath("$.data.generatedBy") { value("template") } }
+            .andExpect { jsonPath("$.data.disclaimer") { value("공식 예측이나 승부 정보가 아닙니다.") } }
             .andReturn()
 
         val body = result.response.contentAsString
+        assertFalse(body.contains("내 직관 기록과 참고용 경기 정보를 바탕으로 본 응원 포인트예요."))
         listOf(
             "\ubc30\ub2f9",
             "\ub3c4\ubc15",
@@ -345,26 +432,37 @@ class ApiIntegrationTest {
             """.trimIndent()
         }
             .andExpect { status { isOk() } }
-            .andExpect { jsonPath("$.data.points[0]") { value("최근 직관 기록 기준으로는 KIA전 표본이 아직 적어요.") } }
-            .andExpect { jsonPath("$.data.points[1]") { value("잠실야구장 기록을 더 쌓으면 구장별 흐름을 더 잘 볼 수 있어요.") } }
+            .andExpect { jsonPath("$.data.title") { value("삼성 vs KIA AI 관전 포인트") } }
+            .andExpect { jsonPath("$.data.generatedBy") { value("template") } }
+            .andExpect { jsonPath("$.data.newsReferences", hasSize<Any>(0)) }
+            .andExpect { jsonPath("$.data.points[1].title") { value("내 직관 기록") } }
+            .andExpect { jsonPath("$.data.points[1].body") { value("아직 직관 기록이 적어 개인화된 관전 포인트가 제한적이에요.") } }
     }
 
     @Test
-    fun `community scaffold returns empty state and disables posting by default`() {
+    fun `match outlook rejects same team`() {
+        mockMvc.post("/api/v1/match-outlook") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                  "favoriteTeamID": "samsung-lions",
+                  "opponentTeamID": "samsung-lions",
+                  "date": "2026-04-12",
+                  "stadiumName": "대구 삼성 라이온즈 파크"
+                }
+            """.trimIndent()
+        }
+            .andExpect { status { isBadRequest() } }
+            .andExpect { jsonPath("$.error.code") { value("VALIDATION_ERROR") } }
+    }
+
+    @Test
+    fun `community local default is enabled with full policy url`() {
         mockMvc.get("/api/v1/community/posts")
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.success") { value(true) } }
-            .andExpect { jsonPath("$.data.items", hasSize<Any>(0)) }
-            .andExpect { jsonPath("$.data.message") { value("응원톡은 준비 중입니다.") } }
+            .andExpect { jsonPath("$.data.enabled") { value(true) } }
             .andExpect { jsonPath("$.data.policyURL") { value("https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html") } }
-
-        mockMvc.post("/api/v1/community/posts") {
-            contentType = MediaType.APPLICATION_JSON
-            content = """{"content":"삼성 화이팅"}"""
-        }
-            .andExpect { status { isForbidden() } }
-            .andExpect { jsonPath("$.success") { value(false) } }
-            .andExpect { jsonPath("$.error.code") { value("COMMUNITY_DISABLED") } }
     }
 
     private fun createAttendance(deviceID: String, request: AttendanceLogRequest) {

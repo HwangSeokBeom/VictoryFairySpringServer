@@ -15,4 +15,13 @@ class DeviceIdentityFilter {
         }
         return value
     }
+
+    fun optionalDeviceID(request: HttpServletRequest): String? {
+        val value = request.getHeader(DEVICE_ID_HEADER)?.trim()
+        if (value.isNullOrBlank()) return null
+        if (value.length > 128) {
+            throw ApiException("MISSING_DEVICE_ID", "디바이스 식별자가 올바르지 않습니다.", 401)
+        }
+        return value
+    }
 }

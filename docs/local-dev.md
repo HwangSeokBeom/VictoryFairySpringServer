@@ -64,6 +64,78 @@ http://localhost:8081
 
 No iOS code changes were made in this task. The intent is a minimal baseURL switch while preserving the Node-style response envelope and app-facing DTO fields where practical.
 
+## Profile Images
+
+Profile images are optional and are stored locally only for development:
+
+```bash
+export PROFILE_IMAGE_UPLOAD_ENABLED=true
+export PROFILE_IMAGE_MAX_BYTES=2097152
+export PROFILE_IMAGE_MAX_SIDE=512
+export PROFILE_IMAGE_UPLOAD_DIR=data/uploads/profile
+```
+
+The iOS app should compress/resize before upload. The server still validates MIME type and extension, decodes the image, resizes the longest side to 512px, re-encodes to JPEG quality 0.8 unless PNG transparency must be preserved, and serves the result at `/uploads/profile/{filename}`. Do not use local filesystem storage for production; move this to S3-compatible storage and a CDN before a real public deployment.
+
+Create a profile first:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/me/profile \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -d '{"nickname":"석범","favoriteTeamID":"samsung-lions","profileEmoji":"⚾"}'
+```
+
+Upload:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/me/profile/image \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -F "image=@profile.jpg;type=image/jpeg"
+```
+
+Delete:
+
+```bash
+curl -X DELETE http://localhost:8081/api/v1/me/profile/image \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+## Community Report And Block
+
+Local community defaults:
+
+```bash
+export COMMUNITY_ENABLED=true
+export COMMUNITY_POSTS_REQUIRE_PROFILE=true
+export COMMUNITY_BLOCK_ENABLED=true
+export COMMUNITY_POLICY_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html
+```
+
+Report is for moderation review. Block is immediate personal control and hides the blocked author's existing and future 응원톡 from the requester.
+
+```bash
+curl -X POST http://localhost:8081/api/v1/community/posts/{postID}/report \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
+  -d '{"reason":"spam"}'
+```
+
+```bash
+curl -X POST http://localhost:8081/api/v1/community/users/{authorID}/block \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+```bash
+curl -X DELETE http://localhost:8081/api/v1/community/users/{authorID}/block \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
+```bash
+curl http://localhost:8081/api/v1/community/blocked-users \
+  -H "X-Device-ID: 00000000-0000-4000-8000-000000000001"
+```
+
 ## Seed And Verify Sample Game
 
 ```bash
@@ -250,7 +322,7 @@ The parser returns candidates and warnings only. The app must show the result fo
 
 ## Device-Owned APIs
 
-Use `X-Device-ID` for preferences, attendance logs, feed, calendar, statistics, win-rate analysis, and match outlook:
+Use `X-Device-ID` for preferences, lightweight profile, attendance logs, feed, calendar, statistics, win-rate analysis, community writes/reports, and personalized match outlook:
 
 ```bash
 curl -H "X-Device-ID: 00000000-0000-4000-8000-000000000001" \
@@ -278,6 +350,19 @@ curl -X POST http://localhost:8081/api/v1/match-outlook \
   }'
 ```
 
+Without `X-Device-ID`, match outlook still returns safe `경기 전망`/`관전 포인트` copy, but personalization is limited. It must not be presented as betting, prediction odds, guaranteed outcome guidance, or 적중률.
+
+Lightweight profile:
+
+```bash
+curl -H "X-Device-ID: test-device" http://localhost:8081/api/v1/me/profile
+
+curl -X POST http://localhost:8081/api/v1/me/profile \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: test-device" \
+  -d '{"nickname":"석범","favoriteTeamID":"samsung-lions","profileEmoji":"⚾"}'
+```
+
 News:
 
 ```bash
@@ -296,16 +381,31 @@ NEWS_CACHE_TTL_SECONDS=1800
 
 Do not put Naver credentials in iOS. The News API returns normalized `title`, `summary`, `publishedAt`, `sourceName`, `url`, and `teamIDs` only; full articles open externally through the returned link. If a secret was exposed, rotate it before production.
 
-Community scaffold:
+Legal links:
+
+```bash
+curl http://localhost:8081/api/v1/legal-links
+```
+
+Community:
 
 ```bash
 curl http://localhost:8081/api/v1/community/posts
 ```
 
-Community writes are disabled unless explicitly enabled:
+Local/dev defaults to enabled. Production defaults to disabled unless explicitly enabled. Posting requires a profile first and is guarded by basic moderation. MVP community is text-only: no images, videos, nested comments, or DMs.
 
 ```bash
-COMMUNITY_ENABLED=false
+COMMUNITY_ENABLED=true
+COMMUNITY_POSTS_REQUIRE_PROFILE=true
+COMMUNITY_POLICY_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html
+```
+
+```bash
+curl -X POST http://localhost:8081/api/v1/community/posts \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: test-device" \
+  -d '{"teamID":"samsung-lions","content":"오늘도 삼성 응원합니다!"}'
 ```
 
 Keep the match outlook positioned as `경기 전망`/`관전 포인트`. It must not be presented as guaranteed outcome guidance or 금전성 승부 정보.

@@ -1,3 +1,7 @@
 victory-fairy:
   kbo:
     source-label-mode: ${KBO_SOURCE_LABEL_MODE:review}
+  community:
+    enabled: ${COMMUNITY_ENABLED:false}
+    posts-require-profile: ${COMMUNITY_POSTS_REQUIRE_PROFILE:true}
+    block-enabled: ${COMMUNITY_BLOCK_ENABLED:true}

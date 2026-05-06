@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.multipart.MaxUploadSizeExceededException
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -18,6 +19,12 @@ class GlobalExceptionHandler {
     fun validation(error: Exception): ResponseEntity<ApiResponse<Nothing>> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
             ApiResponse.fail("VALIDATION_ERROR", "입력값을 확인해 주세요.", error.message)
+        )
+
+    @ExceptionHandler(MaxUploadSizeExceededException::class)
+    fun maxUploadSize(error: MaxUploadSizeExceededException): ResponseEntity<ApiResponse<Nothing>> =
+        ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(
+            ApiResponse.fail("PROFILE_IMAGE_TOO_LARGE", "프로필 이미지는 2MB 이하로 올려 주세요.", error.message)
         )
 
     @ExceptionHandler(Exception::class)
