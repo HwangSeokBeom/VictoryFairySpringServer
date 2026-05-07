@@ -18,6 +18,9 @@ class KboSchedulePageClient(
         Playwright.create().use { playwright ->
             playwright.chromium().launch(BrowserType.LaunchOptions().setHeadless(true)).use { browser ->
                 browser.newPage().use { page ->
+                    val timeoutMillis = properties.kbo.refresh.timeoutSeconds.coerceAtLeast(1) * 1_000.0
+                    page.setDefaultTimeout(timeoutMillis)
+                    page.setDefaultNavigationTimeout(timeoutMillis)
                     page.navigate(scheduleURL)
                     page.waitForSelector("#tblScheduleList")
                     page.selectAndSettle("#ddlYear", season.toString())

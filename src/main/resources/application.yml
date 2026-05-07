@@ -34,6 +34,13 @@ victory-fairy:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:*}
   kbo:
     source-label-mode: ${KBO_SOURCE_LABEL_MODE:dev}
+    refresh:
+      enabled: ${KBO_REFRESH_ENABLED:false}
+      cron: ${KBO_REFRESH_CRON:0 0 3,9,15,21 * * *}
+      season: ${KBO_REFRESH_SEASON:2026}
+      admin-token: ${KBO_REFRESH_ADMIN_TOKEN:}
+      timeout-seconds: ${KBO_REFRESH_TIMEOUT_SECONDS:180}
+      lock-enabled: ${KBO_REFRESH_LOCK_ENABLED:true}
     scraped-dev:
       enabled: ${KBO_SCRAPED_DEV_ENABLED:true}
       input-json: ${KBO_SCRAPED_DEV_INPUT_JSON:/Users/hwangseokbeom/Documents/GitHub/VictoryFairyCoreServer/input/kbo-scraper-2026.json}

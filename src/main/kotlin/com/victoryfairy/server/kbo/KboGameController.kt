@@ -24,7 +24,7 @@ class KboGameController(
 
     @GetMapping("/api/v1/kbo/standings")
     fun standings(@RequestParam(required = false) season: Int?): ApiResponse<KboStandingsData> =
-        ApiResponse.ok(kboGameService.standings(season ?: properties.kbo.scrapedDev.season))
+        ApiResponse.ok(kboGameService.standings(season ?: properties.kbo.refresh.season))
 
     @PostMapping("/api/v1/dev/kbo/seed-sample-game")
     fun seedSampleGame(

@@ -25,6 +25,7 @@ data class AppProperties(
 
     data class KboProperties(
         val scrapedDev: ScrapedDevProperties = ScrapedDevProperties(),
+        val refresh: RefreshProperties = RefreshProperties(),
         val sourceLabelMode: String = "dev",
     )
 
@@ -38,6 +39,15 @@ data class AppProperties(
         val statePath: String = "data/kbo/kbo_scraped_dev_update_state.json",
         val adminImportToken: String = "",
         val requestDelayMs: Long = 350,
+    )
+
+    data class RefreshProperties(
+        val enabled: Boolean = false,
+        val cron: String = "0 0 3,9,15,21 * * *",
+        val season: Int = 2026,
+        val adminToken: String = "",
+        val timeoutSeconds: Long = 180,
+        val lockEnabled: Boolean = true,
     )
 
     data class AiProperties(
