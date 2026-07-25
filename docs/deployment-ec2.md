@@ -7,7 +7,7 @@ Production branch strategy:
 
 Production domain:
 
-- `http://victoryfairy.duckdns.org`
+- `https://victoryfairy.duckdns.org`
 
 ## 1. Install Runtime
 
@@ -33,12 +33,13 @@ Create `.env` on the EC2 instance only. Do not commit it.
 ```bash
 SPRING_PROFILES_ACTIVE=production
 SERVER_PORT=8081
-PUBLIC_BASE_URL=http://victoryfairy.duckdns.org
+PUBLIC_BASE_URL=https://victoryfairy.duckdns.org
 
 # Prefer PostgreSQL for real production.
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/victoryfairy
 SPRING_DATASOURCE_USERNAME=replace-with-db-user
 SPRING_DATASOURCE_PASSWORD=replace-with-db-password
+FLYWAY_BASELINE_ON_MIGRATE=false
 
 GROQ_API_KEY=replace-with-server-only-key
 GROQ_MODEL=llama-3.1-8b-instant
@@ -76,7 +77,8 @@ DISCLAIMER_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/disclaimer.htm
 COMMUNITY_POLICY_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html
 ```
 
-`application-production.yml` has a temporary H2 fallback so the jar can boot before PostgreSQL is ready. Do not use that fallback for real production data; H2 files are not production-safe for this service.
+The production profile requires PostgreSQL and has no H2 fallback. Flyway
+applies versioned migrations and Hibernate uses `ddl-auto=validate`.
 
 For KBO data refresh on production, keep `SPRING_PROFILES_ACTIVE=production` and use `KBO_REFRESH_ENABLED=true`. Do not set `SPRING_PROFILES_ACTIVE=local` on EC2 production, and do not enable dev endpoints in production.
 
@@ -137,6 +139,7 @@ Check health:
 
 ```bash
 curl http://localhost:8081/health
+curl http://localhost:8081/ready
 curl http://localhost:8081/api/v1/legal-links
 ```
 
@@ -189,6 +192,15 @@ Example `/etc/nginx/conf.d/victoryfairy.conf`:
 server {
     listen 80;
     server_name victoryfairy.duckdns.org;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name victoryfairy.duckdns.org;
+
+    ssl_certificate /etc/letsencrypt/live/victoryfairy.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/victoryfairy.duckdns.org/privkey.pem;
 
     client_max_body_size 2m;
 
@@ -218,8 +230,8 @@ With Nginx, keep `SERVER_PORT=8081` and do not expose port `8081` publicly.
 Recommended inbound rules:
 
 - SSH `22`: only your IP
-- HTTP `80`: open
-- HTTPS `443`: add later when TLS is configured
+- HTTP `80`: open for redirect and certificate renewal only
+- HTTPS `443`: open
 - App `8081`: closed publicly when using Nginx
 
 ## 9. DuckDNS
@@ -227,7 +239,8 @@ Recommended inbound rules:
 Point `victoryfairy.duckdns.org` to the EC2 public IP in DuckDNS. After DNS updates, verify:
 
 ```bash
-curl http://victoryfairy.duckdns.org/health
+curl https://victoryfairy.duckdns.org/health
+curl https://victoryfairy.duckdns.org/ready
 ```
 
 ## 10. Production Safety Checklist
@@ -239,4 +252,4 @@ curl http://victoryfairy.duckdns.org/health
 - Keep KBO dev collector endpoints disabled in production. The production profile sets `KBO_SCRAPED_DEV_ENABLED=false`.
 - Use `KBO_REFRESH_ENABLED=true` for automatic KBO refreshes and `POST /api/v1/admin/kbo/refresh` for manual refreshes.
 - Do not use `/api/v1/dev/kbo/collect-scraped-dev`, `/api/v1/dev/kbo/update-scraped-dev`, or `/api/v1/dev/kbo/import-scraped-dev-json` on EC2 production.
-- Set `PUBLIC_BASE_URL=http://victoryfairy.duckdns.org` so generated URLs are stable behind Nginx.
+- Set `PUBLIC_BASE_URL=https://victoryfairy.duckdns.org` so generated URLs are stable behind Nginx.

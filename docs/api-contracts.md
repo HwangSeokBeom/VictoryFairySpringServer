@@ -786,3 +786,23 @@ Response:
 ```
 
 Warnings can include `DATE_NOT_FOUND`, `TEAM_AMBIGUOUS`, `TEAM_ORDER_UNCERTAIN`, `STADIUM_NOT_FOUND`, and `SEAT_LOW_CONFIDENCE`. Candidates are suggestions only; the app must ask the user to confirm before saving.
+
+## Photo Analysis
+
+The iOS client reserves `POST /api/v1/photos/analyze` for an optional future
+feature. The canonical Spring server currently fails closed without reading or
+storing uploaded image content:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "PHOTO_ANALYSIS_DISABLED",
+    "message": "사진 분석 기능은 아직 제공되지 않습니다."
+  }
+}
+```
+
+The client treats this code as an unavailable optional feature. Enabling image
+analysis later requires a separate privacy, retention, size-limit, and provider
+security review.

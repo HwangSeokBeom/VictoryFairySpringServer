@@ -1,0 +1,25 @@
+[Unit]
+Description=VictoryFairy Spring Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=victoryfairy
+Group=victoryfairy
+WorkingDirectory=/opt/victoryfairy
+EnvironmentFile=/etc/victoryfairy/victoryfairy.env
+ExecStartPre=/opt/victoryfairy/scripts/verify_production_contract.sh
+ExecStart=/usr/bin/java -jar /opt/victoryfairy/app.jar
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=40
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/victoryfairy /var/log/victoryfairy
+
+[Install]
+WantedBy=multi-user.target
