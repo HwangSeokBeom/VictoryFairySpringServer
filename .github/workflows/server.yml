@@ -26,5 +26,5 @@ jobs:
         run: scripts/rehearse_postgres_migration.sh
       - name: Secret and patch hygiene
         run: |
-          scripts/scan_for_secrets.sh
+          scripts/scan_sensitive_patterns.sh
           git diff --check

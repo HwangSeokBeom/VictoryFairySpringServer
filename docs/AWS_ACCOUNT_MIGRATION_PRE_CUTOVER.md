@@ -82,7 +82,7 @@ non-empty target. It prints table row counts only, never row contents.
 ./gradlew bootJar
 scripts/rehearse_postgres_migration.sh
 scripts/rehearse_h2_to_postgres.sh /path/to/recovery-copy.mv.db
-scripts/scan_for_secrets.sh
+scripts/scan_sensitive_patterns.sh
 git diff --check
 ```
 
