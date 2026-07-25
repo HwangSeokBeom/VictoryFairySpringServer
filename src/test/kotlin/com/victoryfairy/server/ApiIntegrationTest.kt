@@ -51,6 +51,7 @@ class ApiIntegrationTest {
 
         listOf(
             "GET /health",
+            "GET /ready",
             "GET /api/v1/teams",
             "GET /api/v1/me/preferences",
             "PUT /api/v1/me/preferences",
@@ -79,6 +80,7 @@ class ApiIntegrationTest {
             "POST /api/v1/attendance-logs",
             "POST /api/v1/ai/diary-draft",
             "POST /api/v1/ticket/parse-ocr-text",
+            "POST /api/v1/photos/analyze",
             "GET /api/v1/seasons",
         ).forEach { expected ->
             assertTrue(expected in mappings, "Missing registered request mapping: $expected")
@@ -91,6 +93,25 @@ class ApiIntegrationTest {
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.success") { value(true) } }
             .andExpect { jsonPath("$.data.status") { value("ok") } }
+    }
+
+    @Test
+    fun `photo analysis contract fails closed while the feature is disabled`() {
+        mockMvc.post("/api/v1/photos/analyze") {
+            contentType = MediaType.MULTIPART_FORM_DATA
+        }
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(false) } }
+            .andExpect { jsonPath("$.error.code") { value("PHOTO_ANALYSIS_DISABLED") } }
+    }
+
+    @Test
+    fun `readiness verifies the database dependency`() {
+        mockMvc.get("/ready")
+            .andExpect { status { isOk() } }
+            .andExpect { jsonPath("$.success") { value(true) } }
+            .andExpect { jsonPath("$.data.status") { value("ready") } }
+            .andExpect { jsonPath("$.data.database") { value("up") } }
     }
 
     @Test

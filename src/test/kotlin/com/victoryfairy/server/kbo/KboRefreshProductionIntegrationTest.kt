@@ -22,6 +22,9 @@ import org.springframework.test.web.servlet.post
 @TestPropertySource(
     properties = [
         "spring.datasource.url=jdbc:h2:mem:kbo-refresh-production;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "victory-fairy.kbo.refresh.admin-token=test-refresh-token",
         "victory-fairy.kbo.scraped-dev.enabled=false",
