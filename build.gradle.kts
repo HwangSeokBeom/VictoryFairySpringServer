@@ -4,12 +4,16 @@ plugins {
     kotlin("jvm") version "2.2.20"
     kotlin("plugin.spring") version "2.2.20"
     kotlin("plugin.jpa") version "2.2.20"
-    id("org.springframework.boot") version "3.4.11"
+    id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
 group = "com.victoryfairy"
 version = "1.0.0"
+
+extra["jackson-bom.version"] = "2.21.5"
+extra["netty.version"] = "4.1.136.Final"
+extra["postgresql.version"] = "42.7.12"
 
 springBoot {
     mainClass.set("com.victoryfairy.server.VictoryFairyApplicationKt")
