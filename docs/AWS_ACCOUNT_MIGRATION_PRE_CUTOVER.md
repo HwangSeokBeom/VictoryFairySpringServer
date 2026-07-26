@@ -118,9 +118,10 @@ scripts/verify_production_contract.sh
 - Only ports 80 and 443 are public. SSH, 8081, and PostgreSQL are not public.
 - Java 17, Nginx, PostgreSQL 16, and Certbot are installed.
 - Nginx, PostgreSQL, and the `victoryfairy` systemd service remain stopped.
-- Exact source commit
-  `ea7e3725bcf309bc75e3eb910a0188318a2985c2` is staged under
-  `/opt/victoryfairy/source`.
+- Reviewed migration-branch source is staged under
+  `/opt/victoryfairy/source`. Before cutover, its detached `HEAD` must exactly
+  match `origin/fix/aws-account-migration-readiness`; record that SHA in the
+  deployment log instead of copying a mutable value into this document.
 - The server artifact is built as `/opt/victoryfairy/app.jar.next`; it is not
   the active systemd artifact.
 
