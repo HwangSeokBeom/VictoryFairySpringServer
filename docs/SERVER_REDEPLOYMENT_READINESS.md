@@ -68,8 +68,8 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 1. `COMMUNITY_ENABLED=false`, profile upload와 AI 기능도 비활성 상태다.
 2. RDS `db.t4g.micro`, single-AZ, backup retention 1일은 리뷰/초기 검증용
    구성이다. Free Tier 제한으로 retention 7일 변경은 거부되었다.
-3. CloudWatch alarm 이메일 구독은 요청됐지만 아직 `PendingConfirmation`
-   상태다. 운영 담당자가 SNS 확인 이메일의 링크를 눌러야 한다.
+3. CloudWatch alarm 이메일 구독은 2026-07-26 확인 완료됐다. AWS가 구체적인
+   subscription ARN을 반환하므로 실제 알림 전달 경로가 활성 상태다.
 4. resolved `runtimeClasspath`를 OSV로 점검한 결과 15개 Maven package에
    68개 vulnerability-package 연관 항목이 확인됐다. 이 수치는 동일 advisory가
    여러 Netty module에 겹쳐 나타나는 것을 포함한다. 특히 Spring Boot
@@ -77,6 +77,6 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
    제공되지 않는다. 공식적으로 유지되는 3.5 계열의 수정 버전 `3.5.14` 이상으로
    올리고 전체 회귀 검증하기 전에는 운영 cutover를 승인하지 않는다.
 
-서버 기본 기능, 리뷰 프로필, 참고용 KBO 경기·순위와 일일 자동 refresh는 공개
-환경에서 동작한다. Spring Boot 보안 업데이트와 SNS 구독 확인이 남아 있으므로
+서버 기본 기능, 리뷰 프로필, 참고용 KBO 경기·순위와 일일 자동 refresh, SNS
+알림 구독은 공개 환경에서 동작한다. Spring Boot 보안 업데이트가 남아 있으므로
 현재 운영 cutover 기준은 `NO-GO`이다.
