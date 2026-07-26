@@ -1,8 +1,8 @@
 # KBO Data Policy
 
-This server includes a local KBO collection pipeline used as an operator aid.
-Production app requests never crawl an external site; they read only rows that
-the owner has reviewed and deliberately entered or imported.
+This server includes a KBO collection pipeline that refreshes stored reference
+data once per day. Production app requests never crawl an external site; they
+read only rows persisted by the scheduled refresh.
 
 Internal stored source values:
 
@@ -26,32 +26,27 @@ Review/production-safe API responses also include:
 
 The production Spring profile defaults to review-safe wording through `application-production.yml`. Do not hide `source=scraped-dev`; it is still the internal source marker.
 
-## Owner-Approved Manual Curation Workflow
+## Daily Automatic Refresh Workflow
 
-VictoryFairy uses the following owner-operated workflow:
+VictoryFairy uses the following operating workflow:
 
-1. Run collection locally or in another isolated operator environment only when
-   the owner asks for an update.
-2. Present the collected schedule/result candidates to the owner.
-3. Do not change user-visible production data until the owner explicitly
-   approves the reviewed result.
-4. After approval, enter or import the reviewed rows through the protected
-   administrator procedure.
-5. Serve only the stored rows to app users, with the review-safe label and
+1. Run the protected KBO refresh once per day at `04:30` Asia/Seoul time.
+2. Collect schedule/result rows sequentially and persist normalized rows.
+3. Serve only the stored rows to app users, with the review-safe label and
    disclosure below.
+4. Record refresh success/failure in application logs. CloudWatch collection
+   may forward those logs when the host agent is configured.
+5. Retain the protected administrator endpoint for an exceptional manual rerun.
 
-The production scheduler remains disabled. Crawling must not run during a user
-API request, and installing or running the Playwright collector on the small
-production host is not part of this workflow.
-
-For manually curated rows, use the source classification `admin-entry` or
-`admin-import` where the import path supports it. Legacy rows collected through
-the current collector may retain the internal `scraped-dev` marker, but
-production responses must expose only the configured review-safe wording.
+The crawler must not run during a user API request. User-facing APIs only read
+the database. Production responses expose the configured review-safe wording
+and hide the internal `scraped-dev` marker through the production source
+display policy.
 
 Allowed uses include:
 
-- Owner-requested local collection followed by owner review and manual update
+- Daily automatic production refresh of reference schedule/result rows
+- Protected administrator-triggered rerun when an automatic refresh fails
 - Local iOS development
 - Backend contract testing
 - UI state testing for schedules, results, attendance suggestions, statistics,
@@ -59,9 +54,8 @@ Allowed uses include:
 
 ## Not Allowed
 
-- Automatic production crawling or an enabled production collection scheduler
+- More frequent or overlapping collection beyond the configured daily refresh
 - Crawling as part of a user-facing API request
-- Updating user-visible rows before the owner approves the collected result
 - App Store or in-app claims that the data is official, licensed, complete, or live
 - Calling scraped data provider-backed, licensed, or complete
 - Committing API keys, cookies, credentials, or generated full-season data snapshots
@@ -127,8 +121,8 @@ Scheduled, canceled, postponed, and incomplete-score rows are excluded. Draws ar
 For scraped-dev standings, `updatedAt` is based on the latest stored `KBOGame` update timestamp, not an official publication timestamp. With final rows, it is the latest update timestamp among final rows included in the standings. Without final rows, it falls back to the latest stored update timestamp for any row in the requested season; if the season has no stored rows, it is `null`.
 
 Do not describe this response as official, licensed, complete, or live standings.
-It is calculated from owner-reviewed rows stored in VictoryFairy. Legacy rows
-may still carry the `scraped-dev` internal source marker.
+It is calculated from scheduled reference rows stored in VictoryFairy. Stored
+rows may carry the `scraped-dev` internal source marker.
 
 ## App Review-Safe Feature Wording
 
@@ -142,8 +136,7 @@ New app-facing feature surfaces should keep this positioning:
 
 Avoid claims that imply licensed, complete, live, or provider-backed data. Match outlook must not include guarantees, outcome-hit claims, or 금전성 승부 정보.
 
-The default scheduler remains disabled and must stay disabled for the approved
-manual-curation workflow:
+The local scraped-dev scheduler remains disabled:
 
 ```bash
 KBO_SCRAPED_DEV_SCHEDULER_ENABLED=false
@@ -188,9 +181,10 @@ KBO_SCRAPED_DEV_SEASON=2026
 KBO_SCRAPED_DEV_MIN_INTERVAL_HOURS=20
 ```
 
-The scheduler implementation is retained for local testing only. If explicitly
-enabled outside production, it calls the internal collector, prevents
-overlapping jobs, and enforces the minimum interval. It records status in:
+This separate scheduler implementation is retained for local testing only. If
+explicitly enabled outside production, it calls the internal collector,
+prevents overlapping jobs, and enforces the minimum interval. It records status
+in:
 
 ```bash
 data/kbo/kbo_scraped_dev_update_state.json

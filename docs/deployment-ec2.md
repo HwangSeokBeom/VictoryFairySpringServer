@@ -51,8 +51,8 @@ NAVER_CLIENT_SECRET=replace-with-naver-client-secret
 NAVER_NEWS_BASE_URL=https://openapi.naver.com/v1/search/news.json
 NEWS_CACHE_TTL_SECONDS=1800
 
-KBO_REFRESH_ENABLED=false
-KBO_REFRESH_CRON='0 0 3,9,15,21 * * *'
+KBO_REFRESH_ENABLED=true
+KBO_REFRESH_CRON='0 30 4 * * *'
 KBO_REFRESH_SEASON=2026
 KBO_REFRESH_ADMIN_TOKEN=replace-with-admin-token
 KBO_REFRESH_TIMEOUT_SECONDS=180
@@ -80,19 +80,16 @@ COMMUNITY_POLICY_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/communit
 The production profile requires PostgreSQL and has no H2 fallback. Flyway
 applies versioned migrations and Hibernate uses `ddl-auto=validate`.
 
-Keep `SPRING_PROFILES_ACTIVE=production`, `KBO_REFRESH_ENABLED=false`, and
-`KBO_SCRAPED_DEV_ENABLED=false` on EC2 production. Do not install the
-Playwright browser runtime on the production host for the approved
-owner-curated workflow.
+Keep `SPRING_PROFILES_ACTIVE=production`, `KBO_REFRESH_ENABLED=true`, and
+`KBO_SCRAPED_DEV_ENABLED=false` on EC2 production. Install Playwright Chromium
+for the `victoryfairy` service account, then verify one protected refresh before
+relying on the daily schedule.
 
-When the owner requests a data update, collect candidates outside production,
-show the result to the owner, and manually enter/import only the approved rows.
-The public application reads the stored rows and must not crawl during a user
-request.
+The production scheduler runs once per day at `04:30` Asia/Seoul time. The
+public application reads stored rows and does not crawl during a user request.
 
-`POST /api/v1/admin/kbo/refresh` performs direct collection and persistence; it
-is not the preview-before-approval flow and therefore remains unused under this
-operating policy.
+`POST /api/v1/admin/kbo/refresh` is retained for a protected manual rerun after
+an automatic refresh failure.
 
 ## 4. Build
 
@@ -224,7 +221,7 @@ curl https://victoryfairy.duckdns.org/ready
 - Do not expose Groq or Naver credentials to clients.
 - Keep `COMMUNITY_ENABLED=false` until moderation, profile, report, and block flows are ready for live use.
 - Keep KBO dev collector endpoints disabled in production. The production profile sets `KBO_SCRAPED_DEV_ENABLED=false`.
-- Keep `KBO_REFRESH_ENABLED=false`; update KBO rows only through the
-  owner-approved manual curation workflow in `docs/kbo-data-policy.md`.
+- Keep `KBO_REFRESH_ENABLED=true` with one daily run at KST 04:30; do not
+  enable the separate scraped-dev scheduler.
 - Do not use `/api/v1/dev/kbo/collect-scraped-dev`, `/api/v1/dev/kbo/update-scraped-dev`, or `/api/v1/dev/kbo/import-scraped-dev-json` on EC2 production.
 - Set `PUBLIC_BASE_URL=https://victoryfairy.duckdns.org` so generated URLs are stable behind Nginx.

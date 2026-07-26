@@ -1,7 +1,7 @@
 # VictoryFairy server redeployment readiness
 
 검증 기준일: 2026-07-26
-상태: `PUBLIC_RUNTIME_READY_WITH_MANUAL_DATA_CURATION`
+상태: `PUBLIC_RUNTIME_READY_WITH_DAILY_KBO_REFRESH`
 
 ## 배치된 런타임
 
@@ -28,6 +28,12 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 - TLS certificate와 자동 갱신 timer
 - 리뷰 프로필 생성·조회
 - KBO 팀 목록 10개
+- production Playwright Chromium 설치와 서비스 계정 실행 경로 검증
+- KST 04:30 일일 KBO refresh 활성화
+- 보호된 최초 refresh 성공: 2026 시즌 675건 수집·삽입, warning 0건
+- 저장 결과: 종료 470건, 예정 180건, 취소 25건
+- public 경기 API 5건과 순위 10팀을 `참고용 경기 정보`로 검증
+- KBO 사용자 API는 외부 수집기를 호출하지 않고 저장된 행만 조회
 - 서비스 IAM role의 자기 secret 접근 및 타 서비스 secret 거부
 - 외부 22, 8081, 5432 차단
 - CloudWatch Agent가 application/Nginx 로그와 memory/root-disk 지표를 수집
@@ -54,22 +60,18 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 
 ## 현재 차단 항목
 
-1. 경기와 순위 데이터가 0건이다. 소유자가 갱신을 지시하면 로컬 수집 결과를
-   먼저 제시하고, 승인된 행만 관리자 입력/가져오기로 수동 반영한다.
-2. production의 자동 crawler/scheduler는 비활성 상태를 유지한다. 사용자
-   API 요청 중 외부 KBO 사이트를 호출하지 않으며 저장된 행만 제공한다.
-3. `COMMUNITY_ENABLED=false`, profile upload와 AI 기능도 비활성 상태다.
-4. RDS `db.t4g.micro`, single-AZ, backup retention 1일은 리뷰/초기 검증용
+1. `COMMUNITY_ENABLED=false`, profile upload와 AI 기능도 비활성 상태다.
+2. RDS `db.t4g.micro`, single-AZ, backup retention 1일은 리뷰/초기 검증용
    구성이다. Free Tier 제한으로 retention 7일 변경은 거부되었다.
-5. CloudWatch alarm 이메일 구독은 요청됐지만 아직 `PendingConfirmation`
+3. CloudWatch alarm 이메일 구독은 요청됐지만 아직 `PendingConfirmation`
    상태다. 운영 담당자가 SNS 확인 이메일의 링크를 눌러야 한다.
-6. resolved `runtimeClasspath`를 OSV로 점검한 결과 15개 Maven package에
+4. resolved `runtimeClasspath`를 OSV로 점검한 결과 15개 Maven package에
    68개 vulnerability-package 연관 항목이 확인됐다. 이 수치는 동일 advisory가
    여러 Netty module에 겹쳐 나타나는 것을 포함한다. 특히 Spring Boot
    `3.4.11`은 `CVE-2026-40973` (`HIGH`)의 영향 대상이고 3.4 계열에는 fix가
    제공되지 않는다. 공식적으로 유지되는 3.5 계열의 수정 버전 `3.5.14` 이상으로
    올리고 전체 회귀 검증하기 전에는 운영 cutover를 승인하지 않는다.
 
-서버 기본 기능과 리뷰 프로필은 공개 상태에서 동작한다. App Store 리뷰 전에는
-소유자가 승인한 최소 경기 데이터의 수동 반영과 Spring Boot 보안 업데이트가
-필요하므로 현재 기준 `NO-GO`이다.
+서버 기본 기능, 리뷰 프로필, 참고용 KBO 경기·순위와 일일 자동 refresh는 공개
+환경에서 동작한다. Spring Boot 보안 업데이트와 SNS 구독 확인이 남아 있으므로
+현재 운영 cutover 기준은 `NO-GO`이다.
