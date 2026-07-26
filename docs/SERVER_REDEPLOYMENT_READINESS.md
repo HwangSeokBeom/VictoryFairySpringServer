@@ -22,6 +22,8 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 - Flyway migration 1/1
 - systemd enable/start 및 재부팅 후 복구
 - localhost/public `/health`와 `/ready`
+- 2026-07-26 외부 HTTPS에서 리뷰 프로필과 canonical `/health`, `/ready`
+  재검증
 - HTTP to HTTPS redirect
 - TLS certificate와 자동 갱신 timer
 - 리뷰 프로필 생성·조회
@@ -30,6 +32,12 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 - 외부 22, 8081, 5432 차단
 - CloudWatch Agent가 application/Nginx 로그와 memory/root-disk 지표를 수집
 - EC2 status/CPU와 shared RDS CPU/storage/connection alarm 생성
+- 15개 공통 alarm의 `ALARM`/`OK` action을 SNS topic
+  `project-services-ops-alerts`에 연결
+
+`/actuator/health`는 Actuator dependency를 사용하지 않는 현재 서버의 계약
+경로가 아니다. 외부 모니터링은 `/health`와 database probe를 포함한 `/ready`만
+사용해야 한다.
 
 ## 데이터와 백업
 
@@ -54,7 +62,14 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 4. `COMMUNITY_ENABLED=false`, profile upload와 AI 기능도 비활성 상태다.
 5. RDS `db.t4g.micro`, single-AZ, backup retention 1일은 리뷰/초기 검증용
    구성이다. Free Tier 제한으로 retention 7일 변경은 거부되었다.
-6. CloudWatch alarm에는 아직 통지 대상이 연결되지 않았다.
+6. CloudWatch alarm은 SNS topic에 연결됐지만 구독자가 0명이다. 운영 담당자가
+   받을 이메일 또는 다른 승인된 endpoint의 구독 확인이 필요하다.
+7. resolved `runtimeClasspath`를 OSV로 점검한 결과 15개 Maven package에
+   68개 vulnerability-package 연관 항목이 확인됐다. 이 수치는 동일 advisory가
+   여러 Netty module에 겹쳐 나타나는 것을 포함한다. 특히 Spring Boot
+   `3.4.11`은 `CVE-2026-40973` (`HIGH`)의 영향 대상이고 3.4 계열에는 fix가
+   제공되지 않는다. 공식적으로 유지되는 3.5 계열의 수정 버전 `3.5.14` 이상으로
+   올리고 전체 회귀 검증하기 전에는 운영 cutover를 승인하지 않는다.
 
 서버 기본 기능과 리뷰 프로필은 공개 상태에서 동작하지만 핵심 경기 데이터가
 없으므로 App Store 리뷰 기준 `NO-GO`이다.
