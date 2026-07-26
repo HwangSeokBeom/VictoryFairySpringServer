@@ -10,12 +10,15 @@
 
 ## 남은 순서
 
-1. CI 또는 별도 임시 build host에서 Playwright Chromium runtime을 준비한다.
-2. artifact checksum과 실행 사용자를 고정한 뒤 EC2에 배치한다.
-3. production KBO refresh를 한 번 실행하고 팀·경기·순위 관계를 검증한다.
+1. KBO 또는 적법한 데이터 공급자와 production/App Store 사용 권리를
+   확인하고 계약·출처·표시 문구를 문서화한다.
+2. 사용 권리가 확인된 source adapter를 구현하고 fixture 계약 테스트를
+   추가한다.
+3. 승인된 source로 팀·경기·순위 관계를 검증한다.
 4. 리뷰 프로필로 실제 경기 출석 기록 흐름을 검증한다.
 5. application, Nginx, JVM, DB alarm과 log retention을 설정한다.
 6. RDS 운영 class와 backup retention을 승인한다.
 7. 서명된 iOS archive와 TestFlight 회귀 검증을 별도 승인 후 수행한다.
 
-KBO source가 검증될 때까지 임의 sample/fake 경기 데이터를 운영 DB에 넣지 않는다.
+KBO source가 검증될 때까지 Playwright scraper를 production에서 활성화하거나
+임의 sample/fake 경기 데이터를 운영 DB에 넣지 않는다.

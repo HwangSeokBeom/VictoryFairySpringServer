@@ -28,6 +28,8 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 - KBO 팀 목록 10개
 - 서비스 IAM role의 자기 secret 접근 및 타 서비스 secret 거부
 - 외부 22, 8081, 5432 차단
+- CloudWatch Agent가 application/Nginx 로그와 memory/root-disk 지표를 수집
+- EC2 status/CPU와 shared RDS CPU/storage/connection alarm 생성
 
 ## 데이터와 백업
 
@@ -45,13 +47,14 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 ## 현재 차단 항목
 
 1. 경기와 순위 데이터가 0건이다.
-2. production KBO refresh는 Playwright Chromium runtime 부재로
-   `KBO_REFRESH_FAILED`를 반환했다.
-3. t3.small 현장 설치는 instance를 포화시켰다. 브라우저 layer를 CI에서
-   사전 제작하거나 일시적으로 더 큰 build host를 사용해야 한다.
+2. `docs/kbo-data-policy.md`는 scraped KBO 데이터의 production/App Store
+   사용을 별도 권리·라이선스 검토 없이 금지한다. 따라서 Playwright 설치와
+   production refresh는 진행하지 않고 scheduler를 비활성 상태로 유지한다.
+3. 공식 또는 사용 허가가 확인된 데이터 공급 계약을 먼저 확정해야 한다.
 4. `COMMUNITY_ENABLED=false`, profile upload와 AI 기능도 비활성 상태다.
 5. RDS `db.t4g.micro`, single-AZ, backup retention 1일은 리뷰/초기 검증용
-   구성이다.
+   구성이다. Free Tier 제한으로 retention 7일 변경은 거부되었다.
+6. CloudWatch alarm에는 아직 통지 대상이 연결되지 않았다.
 
 서버 기본 기능과 리뷰 프로필은 공개 상태에서 동작하지만 핵심 경기 데이터가
 없으므로 App Store 리뷰 기준 `NO-GO`이다.
