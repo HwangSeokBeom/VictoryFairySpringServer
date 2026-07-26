@@ -1,7 +1,7 @@
 # VictoryFairy server redeployment readiness
 
 검증 기준일: 2026-07-26
-상태: `PUBLIC_RUNTIME_READY_WITH_DATA_BLOCKER`
+상태: `PUBLIC_RUNTIME_READY_WITH_MANUAL_DATA_CURATION`
 
 ## 배치된 런타임
 
@@ -54,22 +54,22 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
 
 ## 현재 차단 항목
 
-1. 경기와 순위 데이터가 0건이다.
-2. `docs/kbo-data-policy.md`는 scraped KBO 데이터의 production/App Store
-   사용을 별도 권리·라이선스 검토 없이 금지한다. 따라서 Playwright 설치와
-   production refresh는 진행하지 않고 scheduler를 비활성 상태로 유지한다.
-3. 공식 또는 사용 허가가 확인된 데이터 공급 계약을 먼저 확정해야 한다.
-4. `COMMUNITY_ENABLED=false`, profile upload와 AI 기능도 비활성 상태다.
-5. RDS `db.t4g.micro`, single-AZ, backup retention 1일은 리뷰/초기 검증용
+1. 경기와 순위 데이터가 0건이다. 소유자가 갱신을 지시하면 로컬 수집 결과를
+   먼저 제시하고, 승인된 행만 관리자 입력/가져오기로 수동 반영한다.
+2. production의 자동 crawler/scheduler는 비활성 상태를 유지한다. 사용자
+   API 요청 중 외부 KBO 사이트를 호출하지 않으며 저장된 행만 제공한다.
+3. `COMMUNITY_ENABLED=false`, profile upload와 AI 기능도 비활성 상태다.
+4. RDS `db.t4g.micro`, single-AZ, backup retention 1일은 리뷰/초기 검증용
    구성이다. Free Tier 제한으로 retention 7일 변경은 거부되었다.
-6. CloudWatch alarm은 SNS topic에 연결됐지만 구독자가 0명이다. 운영 담당자가
-   받을 이메일 또는 다른 승인된 endpoint의 구독 확인이 필요하다.
-7. resolved `runtimeClasspath`를 OSV로 점검한 결과 15개 Maven package에
+5. CloudWatch alarm 이메일 구독은 요청됐지만 아직 `PendingConfirmation`
+   상태다. 운영 담당자가 SNS 확인 이메일의 링크를 눌러야 한다.
+6. resolved `runtimeClasspath`를 OSV로 점검한 결과 15개 Maven package에
    68개 vulnerability-package 연관 항목이 확인됐다. 이 수치는 동일 advisory가
    여러 Netty module에 겹쳐 나타나는 것을 포함한다. 특히 Spring Boot
    `3.4.11`은 `CVE-2026-40973` (`HIGH`)의 영향 대상이고 3.4 계열에는 fix가
    제공되지 않는다. 공식적으로 유지되는 3.5 계열의 수정 버전 `3.5.14` 이상으로
    올리고 전체 회귀 검증하기 전에는 운영 cutover를 승인하지 않는다.
 
-서버 기본 기능과 리뷰 프로필은 공개 상태에서 동작하지만 핵심 경기 데이터가
-없으므로 App Store 리뷰 기준 `NO-GO`이다.
+서버 기본 기능과 리뷰 프로필은 공개 상태에서 동작한다. App Store 리뷰 전에는
+소유자가 승인한 최소 경기 데이터의 수동 반영과 Spring Boot 보안 업데이트가
+필요하므로 현재 기준 `NO-GO`이다.
