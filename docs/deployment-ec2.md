@@ -51,7 +51,7 @@ NAVER_CLIENT_SECRET=replace-with-naver-client-secret
 NAVER_NEWS_BASE_URL=https://openapi.naver.com/v1/search/news.json
 NEWS_CACHE_TTL_SECONDS=1800
 
-KBO_REFRESH_ENABLED=true
+KBO_REFRESH_ENABLED=false
 KBO_REFRESH_CRON='0 0 3,9,15,21 * * *'
 KBO_REFRESH_SEASON=2026
 KBO_REFRESH_ADMIN_TOKEN=replace-with-admin-token
@@ -80,45 +80,19 @@ COMMUNITY_POLICY_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/communit
 The production profile requires PostgreSQL and has no H2 fallback. Flyway
 applies versioned migrations and Hibernate uses `ddl-auto=validate`.
 
-For KBO data refresh on production, keep `SPRING_PROFILES_ACTIVE=production` and use `KBO_REFRESH_ENABLED=true`. Do not set `SPRING_PROFILES_ACTIVE=local` on EC2 production, and do not enable dev endpoints in production.
+Keep `SPRING_PROFILES_ACTIVE=production`, `KBO_REFRESH_ENABLED=false`, and
+`KBO_SCRAPED_DEV_ENABLED=false` on EC2 production. Do not install the
+Playwright browser runtime on the production host for the approved
+owner-curated workflow.
 
-Install the Chromium runtime and Amazon Linux 2023 system packages used by Playwright:
+When the owner requests a data update, collect candidates outside production,
+show the result to the owner, and manually enter/import only the approved rows.
+The public application reads the stored rows and must not crawl during a user
+request.
 
-```bash
-./gradlew installPlaywrightChromium
-
-sudo dnf install -y \
-  atk \
-  at-spi2-atk \
-  at-spi2-core \
-  libXcomposite \
-  libXdamage \
-  libXfixes \
-  mesa-libgbm \
-  libxkbcommon \
-  libXrandr \
-  libXcursor \
-  libXi \
-  libXtst \
-  pango \
-  cairo \
-  alsa-lib \
-  cups-libs \
-  nss \
-  nspr \
-  gtk3
-```
-
-The production-safe scheduler runs inside the app when `KBO_REFRESH_ENABLED=true`; it calls the internal refresh service directly and does not use `/api/v1/dev/...` routes. The default schedule is `03:00`, `09:00`, `15:00`, and `21:00` KST.
-
-Manual production refresh:
-
-```bash
-curl -X POST http://localhost:8081/api/v1/admin/kbo/refresh \
-  -H "Content-Type: application/json" \
-  -H "X-Admin-Token: $KBO_REFRESH_ADMIN_TOKEN" \
-  -d '{"season":2026}'
-```
+`POST /api/v1/admin/kbo/refresh` performs direct collection and persistence; it
+is not the preview-before-approval flow and therefore remains unused under this
+operating policy.
 
 ## 4. Build
 
@@ -250,6 +224,7 @@ curl https://victoryfairy.duckdns.org/ready
 - Do not expose Groq or Naver credentials to clients.
 - Keep `COMMUNITY_ENABLED=false` until moderation, profile, report, and block flows are ready for live use.
 - Keep KBO dev collector endpoints disabled in production. The production profile sets `KBO_SCRAPED_DEV_ENABLED=false`.
-- Use `KBO_REFRESH_ENABLED=true` for automatic KBO refreshes and `POST /api/v1/admin/kbo/refresh` for manual refreshes.
+- Keep `KBO_REFRESH_ENABLED=false`; update KBO rows only through the
+  owner-approved manual curation workflow in `docs/kbo-data-policy.md`.
 - Do not use `/api/v1/dev/kbo/collect-scraped-dev`, `/api/v1/dev/kbo/update-scraped-dev`, or `/api/v1/dev/kbo/import-scraped-dev-json` on EC2 production.
 - Set `PUBLIC_BASE_URL=https://victoryfairy.duckdns.org` so generated URLs are stable behind Nginx.
