@@ -1,5 +1,6 @@
 server:
   port: ${SERVER_PORT:8081}
+  shutdown: graceful
   error:
     include-message: never
     include-binding-errors: never
@@ -7,10 +8,16 @@ server:
     include-exception: false
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
-    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:h2:file:./data/victoryfairy-prod-temp;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE}}
-    username: ${SPRING_DATASOURCE_USERNAME:sa}
-    password: ${SPRING_DATASOURCE_PASSWORD:}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    enabled: true
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    validate-on-migrate: true
   h2:
     console:
       enabled: false
@@ -23,7 +30,7 @@ spring:
   jpa:
     show-sql: false
     hibernate:
-      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: false
@@ -38,7 +45,7 @@ logging:
     com.victoryfairy.server.config.RequestMappingLogger: OFF
 
 victory-fairy:
-  public-base-url: ${PUBLIC_BASE_URL:http://victoryfairy.duckdns.org}
+  public-base-url: ${PUBLIC_BASE_URL:https://victoryfairy.duckdns.org}
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
   kbo:

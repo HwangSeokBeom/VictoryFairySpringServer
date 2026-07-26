@@ -1,6 +1,8 @@
 # KBO Data Policy
 
-This server includes a local-only KBO `scraped-dev` pipeline for development and testing.
+This server includes a KBO collection pipeline that refreshes stored reference
+data once per day. Production app requests never crawl an external site; they
+read only rows persisted by the scheduled refresh.
 
 Internal stored source values:
 
@@ -24,16 +26,37 @@ Review/production-safe API responses also include:
 
 The production Spring profile defaults to review-safe wording through `application-production.yml`. Do not hide `source=scraped-dev`; it is still the internal source marker.
 
-## Allowed Use
+## Daily Automatic Refresh Workflow
 
+VictoryFairy uses the following operating workflow:
+
+1. Run the protected KBO refresh once per day at `04:30` Asia/Seoul time.
+2. Collect schedule/result rows sequentially and persist normalized rows.
+3. Serve only the stored rows to app users, with the review-safe label and
+   disclosure below.
+4. Record refresh success/failure in application logs. CloudWatch collection
+   may forward those logs when the host agent is configured.
+5. Retain the protected administrator endpoint for an exceptional manual rerun.
+
+The crawler must not run during a user API request. User-facing APIs only read
+the database. Production responses expose the configured review-safe wording
+and hide the internal `scraped-dev` marker through the production source
+display policy.
+
+Allowed uses include:
+
+- Daily automatic production refresh of reference schedule/result rows
+- Protected administrator-triggered rerun when an automatic refresh fails
 - Local iOS development
 - Backend contract testing
-- UI state testing for schedules, results, attendance suggestions, statistics, feed, calendar, win-rate analysis, and match outlook screens
+- UI state testing for schedules, results, attendance suggestions, statistics,
+  feed, calendar, win-rate analysis, and match outlook screens
 
-## Not Allowed Without Further Review
+## Not Allowed
 
-- Production deployment using scraped KBO data
-- App Store release claims based on scraped KBO data
+- More frequent or overlapping collection beyond the configured daily refresh
+- Crawling as part of a user-facing API request
+- App Store or in-app claims that the data is official, licensed, complete, or live
 - Calling scraped data provider-backed, licensed, or complete
 - Committing API keys, cookies, credentials, or generated full-season data snapshots
 
@@ -97,7 +120,9 @@ Scheduled, canceled, postponed, and incomplete-score rows are excluded. Draws ar
 
 For scraped-dev standings, `updatedAt` is based on the latest stored `KBOGame` update timestamp, not an official publication timestamp. With final rows, it is the latest update timestamp among final rows included in the standings. Without final rows, it falls back to the latest stored update timestamp for any row in the requested season; if the season has no stored rows, it is `null`.
 
-Do not describe this response as current licensed standings. It is local development/test data built from scraped-dev game rows.
+Do not describe this response as official, licensed, complete, or live standings.
+It is calculated from scheduled reference rows stored in VictoryFairy. Stored
+rows may carry the `scraped-dev` internal source marker.
 
 ## App Review-Safe Feature Wording
 
@@ -111,7 +136,7 @@ New app-facing feature surfaces should keep this positioning:
 
 Avoid claims that imply licensed, complete, live, or provider-backed data. Match outlook must not include guarantees, outcome-hit claims, or 금전성 승부 정보.
 
-The default scheduler remains disabled:
+The local scraped-dev scheduler remains disabled:
 
 ```bash
 KBO_SCRAPED_DEV_SCHEDULER_ENABLED=false
@@ -156,7 +181,10 @@ KBO_SCRAPED_DEV_SEASON=2026
 KBO_SCRAPED_DEV_MIN_INTERVAL_HOURS=20
 ```
 
-When enabled outside production, the scheduler calls the internal collector, prevents overlapping jobs, and enforces the minimum interval. It records status in:
+This separate scheduler implementation is retained for local testing only. If
+explicitly enabled outside production, it calls the internal collector,
+prevents overlapping jobs, and enforces the minimum interval. It records status
+in:
 
 ```bash
 data/kbo/kbo_scraped_dev_update_state.json

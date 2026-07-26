@@ -7,7 +7,7 @@ Production branch strategy:
 
 Production domain:
 
-- `http://victoryfairy.duckdns.org`
+- `https://victoryfairy.duckdns.org`
 
 ## 1. Install Runtime
 
@@ -33,12 +33,13 @@ Create `.env` on the EC2 instance only. Do not commit it.
 ```bash
 SPRING_PROFILES_ACTIVE=production
 SERVER_PORT=8081
-PUBLIC_BASE_URL=http://victoryfairy.duckdns.org
+PUBLIC_BASE_URL=https://victoryfairy.duckdns.org
 
 # Prefer PostgreSQL for real production.
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/victoryfairy
 SPRING_DATASOURCE_USERNAME=replace-with-db-user
 SPRING_DATASOURCE_PASSWORD=replace-with-db-password
+FLYWAY_BASELINE_ON_MIGRATE=false
 
 GROQ_API_KEY=replace-with-server-only-key
 GROQ_MODEL=llama-3.1-8b-instant
@@ -51,7 +52,7 @@ NAVER_NEWS_BASE_URL=https://openapi.naver.com/v1/search/news.json
 NEWS_CACHE_TTL_SECONDS=1800
 
 KBO_REFRESH_ENABLED=true
-KBO_REFRESH_CRON='0 0 3,9,15,21 * * *'
+KBO_REFRESH_CRON='0 30 4 * * *'
 KBO_REFRESH_SEASON=2026
 KBO_REFRESH_ADMIN_TOKEN=replace-with-admin-token
 KBO_REFRESH_TIMEOUT_SECONDS=180
@@ -76,47 +77,19 @@ DISCLAIMER_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/disclaimer.htm
 COMMUNITY_POLICY_URL=https://hwangseokbeom.github.io/VictoryFairy-legal/community-policy.html
 ```
 
-`application-production.yml` has a temporary H2 fallback so the jar can boot before PostgreSQL is ready. Do not use that fallback for real production data; H2 files are not production-safe for this service.
+The production profile requires PostgreSQL and has no H2 fallback. Flyway
+applies versioned migrations and Hibernate uses `ddl-auto=validate`.
 
-For KBO data refresh on production, keep `SPRING_PROFILES_ACTIVE=production` and use `KBO_REFRESH_ENABLED=true`. Do not set `SPRING_PROFILES_ACTIVE=local` on EC2 production, and do not enable dev endpoints in production.
+Keep `SPRING_PROFILES_ACTIVE=production`, `KBO_REFRESH_ENABLED=true`, and
+`KBO_SCRAPED_DEV_ENABLED=false` on EC2 production. Install Playwright Chromium
+for the `victoryfairy` service account, then verify one protected refresh before
+relying on the daily schedule.
 
-Install the Chromium runtime and Amazon Linux 2023 system packages used by Playwright:
+The production scheduler runs once per day at `04:30` Asia/Seoul time. The
+public application reads stored rows and does not crawl during a user request.
 
-```bash
-./gradlew installPlaywrightChromium
-
-sudo dnf install -y \
-  atk \
-  at-spi2-atk \
-  at-spi2-core \
-  libXcomposite \
-  libXdamage \
-  libXfixes \
-  mesa-libgbm \
-  libxkbcommon \
-  libXrandr \
-  libXcursor \
-  libXi \
-  libXtst \
-  pango \
-  cairo \
-  alsa-lib \
-  cups-libs \
-  nss \
-  nspr \
-  gtk3
-```
-
-The production-safe scheduler runs inside the app when `KBO_REFRESH_ENABLED=true`; it calls the internal refresh service directly and does not use `/api/v1/dev/...` routes. The default schedule is `03:00`, `09:00`, `15:00`, and `21:00` KST.
-
-Manual production refresh:
-
-```bash
-curl -X POST http://localhost:8081/api/v1/admin/kbo/refresh \
-  -H "Content-Type: application/json" \
-  -H "X-Admin-Token: $KBO_REFRESH_ADMIN_TOKEN" \
-  -d '{"season":2026}'
-```
+`POST /api/v1/admin/kbo/refresh` is retained for a protected manual rerun after
+an automatic refresh failure.
 
 ## 4. Build
 
@@ -137,6 +110,7 @@ Check health:
 
 ```bash
 curl http://localhost:8081/health
+curl http://localhost:8081/ready
 curl http://localhost:8081/api/v1/legal-links
 ```
 
@@ -189,6 +163,15 @@ Example `/etc/nginx/conf.d/victoryfairy.conf`:
 server {
     listen 80;
     server_name victoryfairy.duckdns.org;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name victoryfairy.duckdns.org;
+
+    ssl_certificate /etc/letsencrypt/live/victoryfairy.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/victoryfairy.duckdns.org/privkey.pem;
 
     client_max_body_size 2m;
 
@@ -218,8 +201,8 @@ With Nginx, keep `SERVER_PORT=8081` and do not expose port `8081` publicly.
 Recommended inbound rules:
 
 - SSH `22`: only your IP
-- HTTP `80`: open
-- HTTPS `443`: add later when TLS is configured
+- HTTP `80`: open for redirect and certificate renewal only
+- HTTPS `443`: open
 - App `8081`: closed publicly when using Nginx
 
 ## 9. DuckDNS
@@ -227,7 +210,8 @@ Recommended inbound rules:
 Point `victoryfairy.duckdns.org` to the EC2 public IP in DuckDNS. After DNS updates, verify:
 
 ```bash
-curl http://victoryfairy.duckdns.org/health
+curl https://victoryfairy.duckdns.org/health
+curl https://victoryfairy.duckdns.org/ready
 ```
 
 ## 10. Production Safety Checklist
@@ -237,6 +221,7 @@ curl http://victoryfairy.duckdns.org/health
 - Do not expose Groq or Naver credentials to clients.
 - Keep `COMMUNITY_ENABLED=false` until moderation, profile, report, and block flows are ready for live use.
 - Keep KBO dev collector endpoints disabled in production. The production profile sets `KBO_SCRAPED_DEV_ENABLED=false`.
-- Use `KBO_REFRESH_ENABLED=true` for automatic KBO refreshes and `POST /api/v1/admin/kbo/refresh` for manual refreshes.
+- Keep `KBO_REFRESH_ENABLED=true` with one daily run at KST 04:30; do not
+  enable the separate scraped-dev scheduler.
 - Do not use `/api/v1/dev/kbo/collect-scraped-dev`, `/api/v1/dev/kbo/update-scraped-dev`, or `/api/v1/dev/kbo/import-scraped-dev-json` on EC2 production.
-- Set `PUBLIC_BASE_URL=http://victoryfairy.duckdns.org` so generated URLs are stable behind Nginx.
+- Set `PUBLIC_BASE_URL=https://victoryfairy.duckdns.org` so generated URLs are stable behind Nginx.
