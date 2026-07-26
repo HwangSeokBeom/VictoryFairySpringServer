@@ -110,5 +110,29 @@ scripts/verify_production_contract.sh
 8. Freeze writes, take a final backup, restore final data, and re-run checks.
 9. Change DNS only after explicit approval and a rollback checkpoint.
 
-This repository preparation does not perform steps 1 or 2 against AWS and does
-not authorize DNS, database, or process changes.
+## Current replacement-host state
+
+- The replacement EC2 instance is in `ap-northeast-2` and is managed through
+  SSM Session Manager.
+- An Elastic IP is associated and `victoryfairy.duckdns.org` resolves to it.
+- Only ports 80 and 443 are public. SSH, 8081, and PostgreSQL are not public.
+- Java 17, Nginx, PostgreSQL 16, and Certbot are installed.
+- Nginx, PostgreSQL, and the `victoryfairy` systemd service remain stopped.
+- Exact source commit
+  `ea7e3725bcf309bc75e3eb910a0188318a2985c2` is staged under
+  `/opt/victoryfairy/source`.
+- The server artifact is built as `/opt/victoryfairy/app.jar.next`; it is not
+  the active systemd artifact.
+
+DNS was updated before the server was started. Treat this as a pre-cutover
+holding state, not evidence that the service is deployed.
+
+The new AWS account contains no verified old-production database snapshot or
+logical dump. Production data recovery remains `ACCESS_BLOCKED`; do not create
+an empty production database, run Flyway against production, rename
+`app.jar.next` to `app.jar`, or enable the systemd unit.
+
+Use `victoryfairy-bootstrap.conf.example` only for the HTTP certificate
+bootstrap. After a certificate exists, replace it with the reviewed HTTPS
+template. Do not enable or reload either configuration before the restored
+database and localhost application checks pass.
