@@ -1,12 +1,16 @@
 # VictoryFairy server redeployment readiness
 
 검증 기준일: 2026-07-26
-상태: `PUBLIC_RUNTIME_READY_WITH_DAILY_KBO_REFRESH`
+상태: `SECURITY_UPDATE_VERIFIED_DEPLOYMENT_PENDING`
 
 ## 운영 문서
 
 SSM 접속, systemd/Nginx 로그, 안전한 재시작, KBO 일일 갱신 점검, 장애 대응 및
 후속 배포 절차는 [OPERATIONS_RUNBOOK.md](./OPERATIONS_RUNBOOK.md)에 정리했다.
+검증된 의존성 업데이트와 OSV 결과는
+[DEPENDENCY_SECURITY_REPORT.md](./DEPENDENCY_SECURITY_REPORT.md), RDS 단계별
+내구성 결정은 [RDS_DURABILITY_DECISION.md](./RDS_DURABILITY_DECISION.md)에
+정리했다.
 
 ## 배치된 런타임
 
@@ -70,13 +74,13 @@ Nginx는 `127.0.0.1:8081`만 사용하며 8081과 5432는 외부에 노출하지
    구성이다. Free Tier 제한으로 retention 7일 변경은 거부되었다.
 3. CloudWatch alarm 이메일 구독은 2026-07-26 확인 완료됐다. AWS가 구체적인
    subscription ARN을 반환하므로 실제 알림 전달 경로가 활성 상태다.
-4. resolved `runtimeClasspath`를 OSV로 점검한 결과 15개 Maven package에
-   68개 vulnerability-package 연관 항목이 확인됐다. 이 수치는 동일 advisory가
-   여러 Netty module에 겹쳐 나타나는 것을 포함한다. 특히 Spring Boot
-   `3.4.11`은 `CVE-2026-40973` (`HIGH`)의 영향 대상이고 3.4 계열에는 fix가
-   제공되지 않는다. 공식적으로 유지되는 3.5 계열의 수정 버전 `3.5.14` 이상으로
-   올리고 전체 회귀 검증하기 전에는 운영 cutover를 승인하지 않는다.
+4. readiness 브랜치에서 Spring Boot `3.5.16`으로 올리고 Spring 관리 BOM을
+   통해 Jackson `2.21.5`, Netty `4.1.136.Final`, PostgreSQL JDBC `42.7.12`를
+   고정했다. `clean test bootJar`가 통과했으며 resolved production runtime
+   104개 좌표를 OSV batch API로 재검사한 결과 vulnerability-package 연관
+   항목은 0건이었다. 현재 공개 EC2에는 이 artifact를 아직 배치하지 않았다.
 
 서버 기본 기능, 리뷰 프로필, 참고용 KBO 경기·순위와 일일 자동 refresh, SNS
-알림 구독은 공개 환경에서 동작한다. Spring Boot 보안 업데이트가 남아 있으므로
-현재 운영 cutover 기준은 `NO-GO`이다.
+알림 구독은 공개 환경에서 동작한다. 보안 업데이트 코드는 검증됐지만 배포는
+별도 승인 범위이므로 현재 cutover 기준은
+`GO_AFTER_APPROVED_SECURITY_ARTIFACT_DEPLOYMENT`이다.
